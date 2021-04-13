@@ -50,8 +50,14 @@ class ProcessClimateData:
         self.to_raster(self.huss_ncdf, self.huss_raster_file, self.huss_var)
 
     def build_mask(self):
-        """Create climate land mask."""
+        """Create climate land mask replacing existing NaN with np.nan and all other elements with 1
+        representing area where climate data exist on land.
 
-        pass
+        :return:                    NumPy array where land == 1 and all other np.nan
+
+        """
+
+        with rasterio.open(self.wind_raster_file) as src:
+            return np.where(np.isnan(src.read(1)), np.nan, 1)
 
 
