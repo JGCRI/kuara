@@ -15,6 +15,7 @@ setup(
         'rasterio~=1.2.3',
         'numpy~=1.20.3',
         'xarray~=0.18.2',
+        'netCDF4~=1.5.6'
     ],
     include_package_data=True
 )

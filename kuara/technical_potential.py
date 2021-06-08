@@ -1,35 +1,33 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Sep 28 19:11:52 2020
-
-@author: Chris V. / Silvia R.
-Last update: May/11/2021
-"""
-
-import numpy as np
-from scipy import interpolate
-import xarray as xr
 import os
-import rasterio
 import calendar
 
+import numpy as np
+import pkg_resources
+from scipy import interpolate
+import xarray as xr
+import rasterio
 
-def power_law(wind10m, H=100):
-    """Extrapolates wind speed at 10m to the turbine hub height (H) by using the power law
-        Sources: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
-        inputs:   w - wind speed at 10m (m/s)
-                  H - Turbine hub height (m)
-        output:   W_h - wind speed at the turbine hub height H (m/s)
+
+def power_law(wind_speed, hub_height_m=100):
+    """Extrapolates wind speed at 10m to the turbine hub height (H) by using the power law.
+
+    Sources: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
+
+    :param wind_speed:                              w - wind speed at 10m (m/s)
+
+    :param hub_height_m:                            H - Turbine hub height (m)
+
+    :return:                                        W_h - wind speed at the turbine hub height H (m/s)
 
     """
 
-    W_h = wind10m * ((H / 10.0) ** (1.0 / 7.0))
-    return W_h
+    return wind_speed * ((hub_height_m / 10.0) ** (1.0 / 7.0))
 
 
-def dens(p, t):
-    """Computes dry air density based on the ideal gas law
-        Source: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
+def dry_air_density_ideal(pressure, temperature):
+    """Computes dry air density based on the ideal gas law.
+
+    Source: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
 
         inputs:   p   - pressure (Pascal = J/m3)
                   t   - temperature (K)
@@ -39,11 +37,11 @@ def dens(p, t):
     """
 
     Rd = 287.058  # J / Kg * K
-    rho_d = p / (Rd * t)
-    return rho_d
+
+    return pressure / (Rd * temperature)
 
 
-def dens_hum(rho_d, q):
+def dry_air_density_humidity(rho_d, q):
     """Corrects dry air density for humidity
         Source: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
 
@@ -58,7 +56,7 @@ def dens_hum(rho_d, q):
     return rho_m
 
 
-def dens_scal(w, dens):
+def wind_speed_adjusted(w, dens):
     """Designed to account for the differences in air density at the rotor elevations as compared with
         standard (sea level) conditions.
         Sources: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9;
@@ -747,8 +745,7 @@ def process_climate_solar(nc_rsds, target_year, output_directory, rsds_var='rsds
     return arr_rsds
 
 
-def process_climate(nc_wind, nc_tas, nc_ps, nc_huss, r_wind, r_tas, r_ps, r_huss,
-                    target_year, output_directory, wind_var='sfcWind', tas_var='tas', ps_var='ps',
+def process_climate(nc_wind, nc_tas, nc_ps, nc_huss, target_year, output_directory, wind_var='sfcWind', tas_var='tas', ps_var='ps',
                     huss_var='huss'):
     """Process each required climate NetCDF file."""
 
@@ -1148,15 +1145,16 @@ def get_hours_per_year(target_year):
     return yr_hours
 
 
-def calc_total_suitable_area(elev_raster, slope_raster, prot_raster, perm_raster, lulc_raster, output_directory,
-                             gridcellarea_raster):
+def calc_total_suitable_area(elev_raster, slope_raster, prot_raster, perm_raster, lulc_raster, output_directory):
+
     # create exclusion rasters for each exclusion category
     elev = process_elevation(elev_raster)
     slope = process_slope(slope_raster)
     prot = process_protected(prot_raster)
     perm = process_permafrost(perm_raster)
     lulc = process_lulc(lulc_raster)
-    gridcellarea = np.load(gridcellarea_raster)
+    gridcellarea = np.load(pkg_resources.resource_filename('kuara', 'data/gridcell_area_km2_0p5deg.npy'))
+
     # replacing negative gridcell area values (-999.9) in ocean cells by 0.0
     gridcellarea = np.where(gridcellarea > 0.0, gridcellarea, 0.0)
     f_suit = calc_final_suitability(elev, slope, prot, perm, lulc)
@@ -1357,17 +1355,17 @@ def calc_technical_potential(r_wind, r_ps, r_tas, r_huss, suit_sqkm_raster, powe
     # rho - dry air density (kg/m3)
     ps = r_ps
     tas = r_tas
-    rho_d = dens(ps, tas)
+    rho_d = dry_air_density_ideal(ps, tas)
 
     # rho_m - air density corrected for humidity (kg/m3)
     # Note - this correction can be omitted if specific humidity data is unavailable since this is
     # a minor correction.
     huss = r_huss
-    rho_m = dens_hum(rho_d, huss)
+    rho_m = dry_air_density_humidity(rho_d, huss)
 
     # wadj - wind speed adjusted for air density (m/s)
     # Note - if the correction for humidity is not made, rho_m is replaced by rho_d (dry air density)
-    wadj = dens_scal(wind_speed, rho_m)
+    wadj = wind_speed_adjusted(wind_speed, rho_m)
 
     # Compute wind power at the hub height H using power curve from the representative turbine
     p_daily = power_curve_vestas_v136_3450(wadj)
