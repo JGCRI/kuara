@@ -128,7 +128,11 @@ class TestTechnicalPotential(unittest.TestCase):
 
     def test_get_hours_per_year(self):
 
-        pass
+        no_leap = tp.get_hours_per_year(2019)
+        leap = tp.get_hours_per_year(2020)
+
+        self.assertEqual(8760, no_leap)
+        self.assertEqual(8784, leap)
 
     def test_calc_total_suitable_area(self):
 

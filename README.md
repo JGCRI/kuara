@@ -1,3 +1,5 @@
+[![build](https://github.com/JGCRI/kuara/actions/workflows/build.yml/badge.svg)](https://github.com/JGCRI/kuara/actions/workflows/build.yml)
+
 # kuara
 A geospatial package to estimate the technical and economic potential of renewable resources
 
