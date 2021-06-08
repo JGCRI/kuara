@@ -3,7 +3,7 @@ import os
 import numpy as np
 import rasterio
 
-from potential.spatial import process_climate, get_metadata
+from kuara.spatial import process_climate, get_metadata
 
 
 class ProcessClimateData:
