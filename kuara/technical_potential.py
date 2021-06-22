@@ -1133,7 +1133,15 @@ def calc_final_suitability(elev_array, slope_array, prot_array, perm_array, lulc
     return arr
 
 
-def get_hours_per_year(target_year):
+def get_hours_per_year(target_year) -> int:
+    """Get the hours per week for leap and non-leap years based on the target year.
+
+    :param target_year:                             Four digit year in YYYY format
+    :type target_year:                              int
+
+    :return:                                        Number of hours in a year
+
+    """
     leap_hours = 8784
     year_hours = 8760
 
