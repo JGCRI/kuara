@@ -1,8 +1,15 @@
-
+import os
 import numpy as np
 import rasterio
 
 from kuara.spatial import reclassify
+
+
+def calc_final_suitability(elev_array, slope_array, prot_array, perm_array, lulc_array):
+    """Calculate the suitability factor per gridcell where 0 is unsuitable and 1 is most suitable.
+
+    """
+    return elev_array * slope_array * prot_array * perm_array * lulc_array
 
 
 def calc_total_suitable_area(elev_raster, slope_raster, prot_raster, perm_raster, lulc_raster, output_directory):
