@@ -216,7 +216,7 @@ def power_curve_vestas_v90_2000(W_h):
     power_to_fit = np.where(wind_to_fit == 23.50, 2000.0, power_to_fit)
     power_to_fit = np.where(wind_to_fit == 24.00, 2000.0, power_to_fit)
     power_to_fit = np.where(wind_to_fit == 24.50, 2000.0, power_to_fit)
-    power_to_fit = np.where(wind_to_fit == 25.00, 2000.0, power_to_fit)
+    power_to_fit = np.where(wind_to_fit == 25.00, 2000.00, power_to_fit)
 
     # filtering wind input data for the range btw 3.0 (cut-in) and 25.0 m/s
     idx_wind_filt = np.where((W_h <= 25.0) * (W_h >= 3.0))
