@@ -2,6 +2,7 @@ import os
 import calendar
 
 import numpy as np
+import pandas as pd
 import pkg_resources
 from scipy import interpolate
 import xarray as xr
@@ -72,6 +73,174 @@ def wind_speed_adjusted(w, dens):
     rho_std = 1.225
     wadj = w * ((dens / rho_std) ** (1.0 / 3.0))
     return wadj
+
+
+
+
+"""kc's comment: 
+Following is a new function to compute wind power for any turbine. It reads wind and power data points to fit from 
+wind_power_data_points_to_fit.csv, kept in 'data' folder. If this function seems ok, we can comment out the six individual 
+power_curve functions."""
+
+##the following two lines can be moved to a separate script with all user inputs
+df_wind_power_to_fit = pd.read_csv('data/wind_power_data_points_to_fit.csv', header=0)
+wind_turbname = 'vestas_v136_3450'# 'GE1500'# 'Gamesa_G114_2000'# 'E101_3050'# 'GE_2500'# 'vestas_v90_2000'# 
+
+def wind_power_curve(W_h):
+
+    # Creating np.array for power filled with zeros (p is the output array)
+    p = np.zeros_like(W_h)
+
+    # Wind points of the wind power curve
+    wind_to_fit = np.array(df_wind_power_to_fit['wind_'+wind_turbname])
+    
+    # Wind power points of the wind power curve
+    power_to_fit = np.array(df_wind_power_to_fit['power_'+wind_turbname])
+    
+    # Exclude nan if any
+    wind_to_fit = wind_to_fit[~np.isnan(wind_to_fit)]
+    power_to_fit = power_to_fit[~np.isnan(power_to_fit)]
+    
+
+    
+    if wind_turbname == 'vestas_v136_3450':
+        """Computes wind power assuming characteristics of the wind turbine model V136-3.45 MW
+           (indicated in low- and medium-wind conditions: https://www.vestas.com/en/products/4-mw-platform/v136-_3_45_mw#!about)
+            Specifications and power curve available at:
+            https://www.thewindpower.net/turbine_en_1074_vestas_v136-3450.php
+            brochure: http://nozebra.ipapercms.dk/Vestas/Communication/Productbrochure/4MWbrochure/4MWProductBrochure/?page=14
+            Commissioning: 2015
+        """
+        # filtering wind input data for the range btw 2.5 (cut-in) and 22.0 m/s
+        idx_wind_filt = np.where((W_h <= 22.0) * (W_h >= 2.5))
+        wind_filt = W_h[idx_wind_filt]
+
+        # linear interpolation
+        f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
+
+        # calculating wind power as a linear interpolation between points in the power curve
+        power_interp = f(wind_filt)
+
+        # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
+        p[idx_wind_filt] = power_interp
+    
+    
+    elif wind_turbname == 'vestas_v90_2000':
+        """Computes wind power assuming characteristics of the wind turbine model V136-3.45 MW ##kc_comment: model name same as one above--recheck
+           (indicated in low- and medium-wind conditions: https://www.vestas.com/en/products/4-mw-platform/v136-_3_45_mw#!about)
+            Specifications and power curve available at:
+            https://www.thewindpower.net/turbine_en_32_vestas_v90-2000.php
+            Commissioning: 2004
+
+        """ 
+        # filtering wind input data for the range btw 3.0 (cut-in) and 25.0 m/s
+        idx_wind_filt = np.where((W_h <= 25.0) * (W_h >= 3.0))
+        wind_filt = W_h[idx_wind_filt]
+
+        # linear interpolation
+        f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
+
+        # calculating wind power as a linear interpolation between points in the power curve
+        power_interp = f(wind_filt)
+
+        # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
+        p[idx_wind_filt] = power_interp
+
+
+    elif wind_turbname == 'GE_2500':
+        """Computes wind power assuming characteristics of the wind turbine model GE 2.5-100 MW
+           (indicated in low- and medium-wind conditions: https://www.ge.com/in/wind-energy/2.5-MW-wind-turbine
+            Specifications and power curve available at:
+            https://www.thewindpower.net/turbine_en_382_ge-energy_2.5-100.php
+            Commissioning: 2006
+        """
+
+        # filtering wind input data for the range btw 3.0 (cut-in) and 25.0 m/s
+        idx_wind_filt = np.where((W_h <= 25.0) * (W_h >= 3.0))
+        wind_filt = W_h[idx_wind_filt]
+
+        # linear interpolation
+        f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
+
+        # calculating wind power as a linear interpolation between points in the power curve
+        power_interp = f(wind_filt)
+
+        # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
+        p[idx_wind_filt] = power_interp
+
+        
+    elif wind_turbname == 'E101_3050':
+        """Computes wind power assuming characteristics of the wind turbine model E-101 3.05 MW
+           Indicated for medium-wind conditions
+           Specifications and power curve available at:
+           https://www.thewindpower.net/turbine_en_924_enercon_e101-3050.php and
+           https://www.enercon.de/fileadmin/Redakteur/Medien-Portal/broschueren/pdf/en/ENERCON_Produkt_en_06_2015.pdf
+           Commissioning: 2012
+        """
+
+        # filtering wind input data for the range btw 2.0 (cut-in) and 25.0 m/s
+        idx_wind_filt = np.where((W_h <= 25.0) * (W_h >= 2.0))
+        wind_filt = W_h[idx_wind_filt]
+
+        # linear interpolation
+        f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
+
+        # calculating wind power as a linear interpolation between points in the power curve
+        power_interp = f(wind_filt)
+
+        # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
+        p[idx_wind_filt] = power_interp
+
+        
+    elif wind_turbname == 'Gamesa_G114_2000':
+        """Computes wind power assuming characteristics of the wind turbine model Gamesa G114-2000
+            indicated for class III (low winds)
+            https://en.wind-turbine-models.com/turbines/428-gamesa-g114-2.0mw
+            https://www.thewindpower.net/turbine_en_860_gamesa_g114-2000.php
+
+        """
+        
+        # filtering wind input data for the range btw 2.5 (cut-in) and 25.0 m/s
+        idx_wind_filt = np.where((W_h <= 25.0) * (W_h >= 2.5))
+        wind_filt = W_h[idx_wind_filt]
+
+        # linear interpolation
+        f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
+
+        # calculating wind power as a linear interpolation between points in the power curve
+        power_interp = f(wind_filt)
+
+        # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
+        p[idx_wind_filt] = power_interp
+        
+        
+    elif wind_turbname == 'GE1500':
+        """Computes wind power assuming characteristics of the: Wind Turbine Model GE 1.5s
+            Specifications and power curve available at:
+            https://www.en.wind-turbine-models.com/turbines/565-general-electric-ge-1.5s
+
+            inputs:   W_h - array of wind speeds at the turbine hub height H (m/s)
+            outputs:  p   - array of wind power at the turbine hub height H (kW)
+
+        """
+
+        # Generate Sixth Order Fit Coef
+        coef_lin = np.polyfit(wind_to_fit, power_to_fit, 6)
+
+        ## Generate Sixth Order Fit Formula
+        lfit = np.poly1d(coef_lin)
+
+        # Aplying to the wind dataset
+        res = np.ma.where((W_h < 13.5) * (W_h > 3.5))
+        p[res] = lfit(W_h[res])
+
+        res = np.ma.where((W_h <= 25.0) * (W_h >= 13.5))
+        p[res] = 1500.0  # rated power
+
+    return p
+
+
+
 
 
 def power_curve_vestas_v136_3450(W_h):
@@ -216,7 +385,7 @@ def power_curve_vestas_v90_2000(W_h):
     power_to_fit = np.where(wind_to_fit == 23.50, 2000.0, power_to_fit)
     power_to_fit = np.where(wind_to_fit == 24.00, 2000.0, power_to_fit)
     power_to_fit = np.where(wind_to_fit == 24.50, 2000.0, power_to_fit)
-    power_to_fit = np.where(wind_to_fit == 25.00, 2000.00, power_to_fit)
+    power_to_fit = np.where(wind_to_fit == 25.00, 2000.0, power_to_fit)
 
     # filtering wind input data for the range btw 3.0 (cut-in) and 25.0 m/s
     idx_wind_filt = np.where((W_h <= 25.0) * (W_h >= 3.0))
