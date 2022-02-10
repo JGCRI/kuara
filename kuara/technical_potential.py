@@ -1,5 +1,6 @@
 import os
 import calendar
+import pkg_resources
 
 import numpy as np
 import pandas as pd
@@ -75,21 +76,50 @@ def wind_speed_adjusted(w, dens):
     return wadj
 
 
+def compute_wind_power(wind_speed_arr: np.ndarray,
+                       wind_to_fit: np.ndarray,
+                       power_to_fit: np.ndarray,
+                       min_watt_hr: float,
+                       max_watt_hr: float) -> np.ndarray:
+    """Compute wind power for the target turbine model.
 
+    :param wind_speed_arr:               asdf
+    :type wind_speed_arr:
 
-"""kc's comment: 
-Following is a new function to compute wind power for any turbine. It reads wind and power data points to fit from 
-wind_power_data_points_to_fit.csv, kept in 'data' folder. If this function seems ok, we can comment out the six individual 
-power_curve functions."""
+    :param min_watt_hr:                 Minimum power in watt hours.
+    :type min_watt_hr:
 
-##the following two lines can be moved to a separate script with all user inputs
-df_wind_power_to_fit = pd.read_csv('data/wind_power_data_points_to_fit.csv', header=0)
-wind_turbname = 'vestas_v136_3450'# 'GE1500'# 'Gamesa_G114_2000'# 'E101_3050'# 'GE_2500'# 'vestas_v90_2000'# 
-
-def wind_power_curve(W_h):
+    """
 
     # Creating np.array for power filled with zeros (p is the output array)
-    p = np.zeros_like(W_h)
+    power_arr = np.zeros_like(W_h)
+
+    # filtering wind input data for the range btw 2.5 (cut-in) and 22.0 m/s
+    idx_wind_filt = np.where((wind_speed_arr <= max_watt_hr) * (wind_speed_arr >= min_watt_hr))
+    wind_filt = wind_speed_arr[idx_wind_filt]
+
+    # linear interpolation
+    f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
+
+    # calculating wind power as a linear interpolation between points in the power curve
+    power_interp = f(wind_filt)
+
+    # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
+    power_arr[idx_wind_filt] = power_interp
+
+    return power_arr
+
+
+def wind_power_curve(W_h, wind_turbname):
+    """Compute wind power for any turbine. It reads wind and power data points to fit from
+        wind_power_data_points_to_fit.csv, kept in 'data' folder. If this function seems ok, we can comment out the six individual
+        power_curve functions.
+
+    """
+
+    # import wind power data
+    wind_power_file = pkg_resources.resource_filename('kuara', 'data/wind_power_data_points_to_fit.csv')
+    df_wind_power_to_fit = pd.read_csv(wind_power_file, header=0)
 
     # Wind points of the wind power curve
     wind_to_fit = np.array(df_wind_power_to_fit['wind_'+wind_turbname])
@@ -100,9 +130,7 @@ def wind_power_curve(W_h):
     # Exclude nan if any
     wind_to_fit = wind_to_fit[~np.isnan(wind_to_fit)]
     power_to_fit = power_to_fit[~np.isnan(power_to_fit)]
-    
 
-    
     if wind_turbname == 'vestas_v136_3450':
         """Computes wind power assuming characteristics of the wind turbine model V136-3.45 MW
            (indicated in low- and medium-wind conditions: https://www.vestas.com/en/products/4-mw-platform/v136-_3_45_mw#!about)
@@ -111,20 +139,28 @@ def wind_power_curve(W_h):
             brochure: http://nozebra.ipapercms.dk/Vestas/Communication/Productbrochure/4MWbrochure/4MWProductBrochure/?page=14
             Commissioning: 2015
         """
-        # filtering wind input data for the range btw 2.5 (cut-in) and 22.0 m/s
-        idx_wind_filt = np.where((W_h <= 22.0) * (W_h >= 2.5))
-        wind_filt = W_h[idx_wind_filt]
 
-        # linear interpolation
-        f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
+        power_arr = compute_wind_power(wind_speed_arr=W_h,
+                                       wind_to_fit=wind_to_fit,
+                                       power_to_fit=power_to_fit,
+                                       min_watt_hr=2.5,
+                                       max_watt_hr=22.0)
 
-        # calculating wind power as a linear interpolation between points in the power curve
-        power_interp = f(wind_filt)
+        return power_arr
 
-        # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
-        p[idx_wind_filt] = power_interp
-    
-    
+        # # filtering wind input data for the range btw 2.5 (cut-in) and 22.0 m/s
+        # idx_wind_filt = np.where((W_h <= 22.0) * (W_h >= 2.5))
+        # wind_filt = W_h[idx_wind_filt]
+        #
+        # # linear interpolation
+        # f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
+        #
+        # # calculating wind power as a linear interpolation between points in the power curve
+        # power_interp = f(wind_filt)
+        #
+        # # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
+        # p[idx_wind_filt] = power_interp
+
     elif wind_turbname == 'vestas_v90_2000':
         """Computes wind power assuming characteristics of the wind turbine model V136-3.45 MW ##kc_comment: model name same as one above--recheck
            (indicated in low- and medium-wind conditions: https://www.vestas.com/en/products/4-mw-platform/v136-_3_45_mw#!about)
@@ -236,11 +272,6 @@ def wind_power_curve(W_h):
 
         res = np.ma.where((W_h <= 25.0) * (W_h >= 13.5))
         p[res] = 1500.0  # rated power
-
-    return p
-
-
-
 
 
 def power_curve_vestas_v136_3450(W_h):

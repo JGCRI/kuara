@@ -1,1 +1,2 @@
-include kuara/data/*
+include kuara/data/wind_power_data_points_to_fit.csv
+include kuara/data/gridcell_area_km2_0p5deg.npy
