@@ -4,7 +4,6 @@ import pkg_resources
 
 import numpy as np
 import pandas as pd
-# import pkg_resources
 from scipy import interpolate
 import xarray as xr
 import rasterio
@@ -83,7 +82,7 @@ def compute_wind_power(wind_speed_arr: np.ndarray,
                        max_watt_hr: float) -> np.ndarray:
     """Compute wind power for the target turbine model.
 
-    :param wind_speed_arr:               wind speed
+    :param wind_speed_arr:               array of wind speeds at the turbine hub height H (m/s)
     :type wind_speed_arr:                numpy array
 
     :param wind_to_fit:                 wind data points to fit power curve
@@ -145,10 +144,12 @@ def wind_power_curve(W_h, wind_turbname):
 
     if wind_turbname == 'vestas_v136_3450':
         """Computes wind power assuming characteristics of the wind turbine model V136-3.45 MW
-           (indicated in low- and medium-wind conditions: https://www.vestas.com/en/products/4-mw-platform/v136-_3_45_mw#!about)
+           (indicated in low- and medium-wind conditions: 
+           https://www.vestas.com/en/products/4-mw-platform/v136-_3_45_mw#!about)
             Specifications and power curve available at:
             https://www.thewindpower.net/turbine_en_1074_vestas_v136-3450.php
-            brochure: http://nozebra.ipapercms.dk/Vestas/Communication/Productbrochure/4MWbrochure/4MWProductBrochure/?page=14
+            brochure: 
+            http://nozebra.ipapercms.dk/Vestas/Communication/Productbrochure/4MWbrochure/4MWProductBrochure/?page=14
             Commissioning: 2015
         """
 
@@ -158,10 +159,10 @@ def wind_power_curve(W_h, wind_turbname):
                                        min_watt_hr=2.5,
                                        max_watt_hr=22.0)
 
-
     elif wind_turbname == 'vestas_v90_2000':
         """Computes wind power assuming characteristics of the wind turbine model vestas_v90_2000 
-           (indicated in low- and medium-wind conditions: https://www.vestas.com/en/products/4-mw-platform/v136-_3_45_mw#!about)
+           (indicated in low- and medium-wind conditions: 
+           https://www.vestas.com/en/products/4-mw-platform/v136-_3_45_mw#!about)
             Specifications and power curve available at:
             https://www.thewindpower.net/turbine_en_32_vestas_v90-2000.php
             Commissioning: 2004
@@ -186,7 +187,6 @@ def wind_power_curve(W_h, wind_turbname):
                                        power_to_fit=power_to_fit,
                                        min_watt_hr=3.0,
                                        max_watt_hr=25.0)
-
 
     elif wind_turbname == 'E101_3050':
         """Computes wind power assuming characteristics of the wind turbine model E-101 3.05 MW
@@ -217,6 +217,21 @@ def wind_power_curve(W_h, wind_turbname):
                                        min_watt_hr=2.5,
                                        max_watt_hr=25.0)
 
+    elif wind_turbname == 'IEC_classII_3500':
+        """Computes wind power assuming characteristics of the: Wind Turbine 3.5 MW (IEC) class II composite
+            Reference: Eurek et al. 2017,  http://dx.doi.org/10.1016/j.eneco.2016.11.015
+
+        """
+
+        power_arr = compute_wind_power(wind_speed_arr=W_h,
+                                       wind_to_fit=wind_to_fit,
+                                       power_to_fit=power_to_fit,
+                                       min_watt_hr=4.0,
+                                       max_watt_hr=15.0)
+
+        # Filling out the out array power_arr for wind wind in the 15.0 - 25.0 m/s range
+        power_arr = np.where((W_h <= 25.0) * (W_h >= 15.0), 3500.0, power_arr)
+
     elif wind_turbname == 'GE1500':
         """Computes wind power assuming characteristics of the: Wind Turbine Model GE 1.5s
             Specifications and power curve available at:
@@ -227,546 +242,18 @@ def wind_power_curve(W_h, wind_turbname):
         # Generate Sixth Order Fit Coef
         coef_lin = np.polyfit(wind_to_fit, power_to_fit, 6)
 
-        ## Generate Sixth Order Fit Formula
+        # Generate Sixth Order Fit Formula
         lfit = np.poly1d(coef_lin)
 
         # Aplying to the wind dataset
         res = np.ma.where((W_h < 13.5) * (W_h > 3.5))
         power_arr = lfit(W_h[res])
 
-        res = np.ma.where((W_h <= 25.0) * (W_h >= 13.5))
-        power_arr = 1500.0  # rated power
+        # res = np.ma.where((W_h <= 25.0) * (W_h >= 13.5))
+        # power_arr = 1500.0  # rated power
+        power_arr = np.where((W_h <= 25.0) * (W_h >= 13.5), 1500.0, power_arr)
 
     return power_arr
-
-# def power_curve_vestas_v136_3450(W_h):
-#     """Computes wind power assuming characteristics of the wind turbine model V136-3.45 MW
-#        (indicated in low- and medium-wind conditions: https://www.vestas.com/en/products/4-mw-platform/v136-_3_45_mw#!about)
-#         Specifications and power curve available at:
-#         https://www.thewindpower.net/turbine_en_1074_vestas_v136-3450.php
-#         brochure: http://nozebra.ipapercms.dk/Vestas/Communication/Productbrochure/4MWbrochure/4MWProductBrochure/?page=14
-#         Commissioning: 2015
-#     """
-#
-#     # Creating np.array for power filled with zeros (p is the output array)
-#     p = np.zeros_like(W_h)
-#
-#     # Wind points of the wind power curve
-#     wind_to_fit = np.arange(2.5, 23.0, 0.5)
-#
-#     # Creating np.array for power filled with zeros (power_to_fit is the array with power data from the wind power curve)
-#     power_to_fit = np.zeros_like(wind_to_fit)
-#
-#     # Wind power points of the wind power curve
-#     power_to_fit = np.where(wind_to_fit == 2.50, 15.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 3.00, 35.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 3.50, 121.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 4.00, 212.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 4.50, 341.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 5.00, 473.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 5.50, 661.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 6.00, 851.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 6.50, 1114.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 7.00, 1377.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 7.50, 1718.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 8.00, 2058.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 8.50, 2456.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 9.00, 2854.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 9.50, 3200.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 10.00, 3415.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 10.50, 3445.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 11.00, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 11.50, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 12.00, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 12.50, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 13.00, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 13.50, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 14.00, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 14.50, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 15.00, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 15.50, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 16.00, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 16.50, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 17.00, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 17.50, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 18.00, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 18.50, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 19.00, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 19.50, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 20.00, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 20.50, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 21.00, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 21.50, 3450.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 22.00, 3450.0, power_to_fit)
-#
-#     # filtering wind input data for the range btw 2.5 (cut-in) and 22.0 m/s
-#     idx_wind_filt = np.where((W_h <= 22.0) * (W_h >= 2.5))
-#     wind_filt = W_h[idx_wind_filt]
-#
-#     # linear interpolation
-#     f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
-#
-#     # calculating wind power as a linear interpolation between points in the power curve
-#     power_interp = f(wind_filt)
-#
-#     # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
-#     p[idx_wind_filt] = power_interp
-#
-#     return p
-#
-#
-# def power_curve_vestas_v90_2000(W_h):
-#     """Computes wind power assuming characteristics of the wind turbine model V136-3.45 MW
-#        (indicated in low- and medium-wind conditions: https://www.vestas.com/en/products/4-mw-platform/v136-_3_45_mw#!about)
-#         Specifications and power curve available at:
-#         https://www.thewindpower.net/turbine_en_32_vestas_v90-2000.php
-#         Commissioning: 2004
-#
-#     """
-#
-#     # Creating np.array for power filled with zeros (p is the output array)
-#     p = np.zeros_like(W_h)
-#
-#     # Wind points of the wind power curve
-#     wind_to_fit = np.arange(3.0, 25.5, 0.5)
-#
-#     # Creating np.array for power filled with zeros (power_to_fit is the array with power data from the wind power curve)
-#     power_to_fit = np.zeros_like(wind_to_fit)
-#
-#     # Creating np.array for power filled with zeros (power_to_fit is the array with power data from the wind power curve)
-#     power_to_fit = np.zeros_like(wind_to_fit)
-#
-#     # Wind power points of the wind power curve
-#     power_to_fit = np.where(wind_to_fit == 3.00, 10.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 3.50, 20.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 4.00, 46.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 4.50, 110.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 5.00, 170.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 5.50, 240.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 6.00, 355.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 6.50, 460.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 7.00, 580.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 7.50, 732.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 8.00, 884.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 8.50, 1065.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 9.00, 1245.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 9.50, 1428.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 10.00, 1612.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 10.50, 1756.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 11.00, 1900.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 11.50, 1940.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 12.00, 1968.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 12.50, 1980.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 13.00, 1990.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 13.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 14.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 14.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 15.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 15.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 16.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 16.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 17.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 17.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 18.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 18.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 19.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 19.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 20.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 20.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 21.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 21.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 22.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 22.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 23.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 23.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 24.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 24.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 25.00, 2000.0, power_to_fit)
-#
-#     # filtering wind input data for the range btw 3.0 (cut-in) and 25.0 m/s
-#     idx_wind_filt = np.where((W_h <= 25.0) * (W_h >= 3.0))
-#     wind_filt = W_h[idx_wind_filt]
-#
-#     # linear interpolation
-#     f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
-#
-#     # calculating wind power as a linear interpolation between points in the power curve
-#     power_interp = f(wind_filt)
-#
-#     # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
-#     p[idx_wind_filt] = power_interp
-#
-#     return p
-#
-#
-# def power_curve_GE_2500(W_h):
-#     """Computes wind power assuming characteristics of the wind turbine model GE 2.5-100 MW
-#        (indicated in low- and medium-wind conditions: https://www.ge.com/in/wind-energy/2.5-MW-wind-turbine
-#         Specifications and power curve available at:
-#         https://www.thewindpower.net/turbine_en_382_ge-energy_2.5-100.php
-#         Commissioning: 2006
-#     """
-#
-#     # Creating np.array for power filled with zeros (p is the output array)
-#     p = np.zeros_like(W_h)
-#
-#     # Wind points of the wind power curve
-#     wind_to_fit = np.arange(3.0, 25.5, 0.5)
-#
-#     # Creating np.array for power filled with zeros (power_to_fit is the array with power data from the wind power curve)
-#     power_to_fit = np.zeros_like(wind_to_fit)
-#
-#     # Creating np.array for power filled with zeros (power_to_fit is the array with power data from the wind power curve)
-#     power_to_fit = np.zeros_like(wind_to_fit)
-#
-#     # Wind power points of the wind power curve
-#     power_to_fit = np.where(wind_to_fit == 3.00, 10.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 3.50, 80.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 4.00, 160.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 4.50, 250.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 5.00, 340.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 5.50, 460.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 6.00, 590.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 6.50, 770.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 7.00, 952.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 7.50, 1170.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 8.00, 1389.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 8.50, 1650.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 9.00, 1869.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 9.50, 2100.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 10.00, 2260.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 10.50, 2400.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 11.00, 2487.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 11.50, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 12.00, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 12.50, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 13.00, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 13.50, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 14.00, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 14.50, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 15.00, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 15.50, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 16.00, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 16.50, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 17.00, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 17.50, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 18.00, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 18.50, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 19.00, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 19.50, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 20.00, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 20.50, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 21.00, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 21.50, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 22.00, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 22.50, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 23.00, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 23.50, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 24.00, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 24.50, 2500.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 25.00, 2500.0, power_to_fit)
-#
-#     # filtering wind input data for the range btw 3.0 (cut-in) and 25.0 m/s
-#     idx_wind_filt = np.where((W_h <= 25.0) * (W_h >= 3.0))
-#     wind_filt = W_h[idx_wind_filt]
-#
-#     # linear interpolation
-#     f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
-#
-#     # calculating wind power as a linear interpolation between points in the power curve
-#     power_interp = f(wind_filt)
-#
-#     # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
-#     p[idx_wind_filt] = power_interp
-#
-#     return p
-#
-#
-# def power_curve_E101_3050(W_h):
-#     """Computes wind power assuming characteristics of the wind turbine model E-101 3.05 MW
-#        Indicated for medium-wind conditions
-#        Specifications and power curve available at:
-#        https://www.thewindpower.net/turbine_en_924_enercon_e101-3050.php and
-#        https://www.enercon.de/fileadmin/Redakteur/Medien-Portal/broschueren/pdf/en/ENERCON_Produkt_en_06_2015.pdf
-#        Commissioning: 2012
-#     """
-#
-#     # Creating np.array for power filled with zeros (p is the output array)
-#     p = np.zeros_like(W_h)
-#
-#     # Wind points of the wind power curve
-#     wind_to_fit = np.arange(2.0, 25.5, 0.5)
-#
-#     # Creating np.array for power filled with zeros (power_to_fit is the array with power data from the wind power curve)
-#     power_to_fit = np.zeros_like(wind_to_fit)
-#
-#     # Creating np.array for power filled with zeros (power_to_fit is the array with power data from the wind power curve)
-#     power_to_fit = np.zeros_like(wind_to_fit)
-#
-#     # Wind power points of the wind power curve
-#     power_to_fit = np.where(wind_to_fit == 2.00, 3.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 2.50, 20.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 3.00, 37.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 3.50, 78.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 4.00, 118.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 4.50, 188.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 5.00, 258.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 5.50, 369.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 6.00, 479.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 6.50, 635.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 7.00, 790.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 7.50, 995.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 8.00, 1200.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 8.50, 1455.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 9.00, 1710.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 9.50, 2025.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 10.00, 2340.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 10.50, 2650.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 11.00, 2867.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 11.50, 2975.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 12.00, 3034.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 12.50, 3046.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 13.00, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 13.50, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 14.00, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 14.50, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 15.00, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 15.50, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 16.00, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 16.50, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 17.00, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 17.50, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 18.00, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 18.50, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 19.00, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 19.50, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 20.00, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 20.50, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 21.00, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 21.50, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 22.00, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 22.50, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 23.00, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 23.50, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 24.00, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 24.50, 3050.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 25.00, 3050.0, power_to_fit)
-#
-#     # filtering wind input data for the range btw 2.0 (cut-in) and 25.0 m/s
-#     idx_wind_filt = np.where((W_h <= 25.0) * (W_h >= 2.0))
-#     wind_filt = W_h[idx_wind_filt]
-#
-#     # linear interpolation
-#     f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
-#
-#     # calculating wind power as a linear interpolation between points in the power curve
-#     power_interp = f(wind_filt)
-#
-#     # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
-#     p[idx_wind_filt] = power_interp
-#
-#     return p
-#
-#
-# def power_curve_Gamesa_G114_2000(W_h):
-#     """Computes wind power assuming characteristics of the wind turbine model Gamesa G114-2000
-#         indicated for class III (low winds)
-#         https://en.wind-turbine-models.com/turbines/428-gamesa-g114-2.0mw
-#         https://www.thewindpower.net/turbine_en_860_gamesa_g114-2000.php
-#
-#     """
-#
-#     # Creating np.array for power filled with zeros (p is the output array)
-#     p = np.zeros_like(W_h)
-#
-#     # Wind points of the wind power curve
-#     wind_to_fit = np.arange(2.5, 25.5, 0.5)
-#
-#     # Creating np.array for power filled with zeros (power_to_fit is the array with power data from the wind power curve)
-#     power_to_fit = np.zeros_like(wind_to_fit)
-#
-#     # Wind power points of the wind power curve
-#     power_to_fit = np.where(wind_to_fit == 2.50, 6.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 3.00, 43.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 3.50, 76.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 4.00, 135.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 4.50, 220.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 5.00, 306.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 5.50, 435.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 6.00, 584.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 6.50, 724.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 7.00, 917.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 7.50, 1110.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 8.00, 1382.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 8.50, 1586.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 9.00, 1726.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 9.50, 1817.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 10.00, 1875.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 10.50, 1913.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 11.00, 1934.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 11.50, 1970.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 12.00, 1980.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 12.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 13.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 13.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 14.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 14.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 15.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 15.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 16.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 16.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 17.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 17.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 18.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 18.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 19.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 19.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 20.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 20.50, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 21.00, 2000.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 21.50, 1958.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 22.00, 1900.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 22.50, 1820.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 23.00, 1707.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 23.50, 1611.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 24.00, 1490.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 24.50, 1370.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 25.00, 1215.0, power_to_fit)
-#
-#     # filtering wind input data for the range btw 2.5 (cut-in) and 25.0 m/s
-#     idx_wind_filt = np.where((W_h <= 25.0) * (W_h >= 2.5))
-#     wind_filt = W_h[idx_wind_filt]
-#
-#     # linear interpolation
-#     f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
-#
-#     # calculating wind power as a linear interpolation between points in the power curve
-#     power_interp = f(wind_filt)
-#
-#     # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
-#     p[idx_wind_filt] = power_interp
-#
-#     return p
-#
-#
-# def power_curve_GE1500(W_h):
-#     """Computes wind power assuming characteristics of the: Wind Turbine Model GE 1.5s
-#         Specifications and power curve available at:
-#         https://www.en.wind-turbine-models.com/turbines/565-general-electric-ge-1.5s
-#
-#         inputs:   W_h - array of wind speeds at the turbine hub height H (m/s)
-#         outputs:  p   - array of wind power at the turbine hub height H (kW)
-#
-#     """
-#
-#     # Creating np.array for power filled with zeros
-#     p = np.zeros_like(W_h)
-#
-#     # Best Fitting
-#     x_to_fit = np.arange(3.5, 14.0, 0.5)
-#
-#     # Turbine model GE 1.5s
-#     power_to_fit = [0.0, 38.5, 66.0, 104.0, 150.0, 205.0, 269.0, 344.0, 428.0, 528.0, 644.0, 774.0, 926.5, 1079.0,
-#                     1211.0, 1342.0, 1401.0, 1460.0, 1477.0, 1494.0, 1500.0]
-#
-#     # Generate Sixth Order Fit Coef
-#     coef_lin = np.polyfit(x_to_fit, power_to_fit, 6)
-#
-#     ## Generate Sixth Order Fit Formula
-#     lfit = np.poly1d(coef_lin)
-#
-#     # Aplying to the wind dataset
-#     res = np.ma.where((W_h < 13.5) * (W_h > 3.5))
-#     p[res] = lfit(W_h[res])
-#
-#     res = np.ma.where((W_h <= 25.0) * (W_h >= 13.5))
-#     p[res] = 1500.0  # rated power
-#
-#     return p
-#
-#
-# def power_curve_IEC_classII_3500(W_h):
-#     """Computes wind power assuming characteristics of the: Wind Turbine 3.5 MW (IEC) class II composite
-#         Reference: Eurek et al. 2017,  http://dx.doi.org/10.1016/j.eneco.2016.11.015
-#
-#         inputs:   W_h - array of wind speeds at the turbine hub height H (m/s)
-#         outputs:  p   - array of wind power at the turbine hub height H (kW)
-#
-#     """
-#
-#     # Creating np.array for power filled with zeros (p is the output array)
-#     p = np.zeros_like(W_h)
-#
-#     # Wind points of the wind power curve
-#     wind_to_fit = np.arange(4.0, 15.25, 0.25)
-#
-#     # Creating np.array for power filled with zeros (power_to_fit is the array with power data from the wind power curve)
-#     power_to_fit = np.zeros_like(wind_to_fit)
-#
-#     # Wind power points of the wind power curve
-#     power_to_fit = np.where(wind_to_fit == 4.00, 98.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 4.25, 150.5, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 4.50, 203.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 4.75, 255.5, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 5.00, 308.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 5.25, 383.25, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 5.50, 458.5, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 5.75, 533.75, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 6.00, 609.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 6.25, 707.875, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 6.50, 806.75, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 6.75, 905.625, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 7.00, 1004.5, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 7.25, 1133.125, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 7.50, 1261.75, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 7.75, 1390.375, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 8.00, 1519.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 8.25, 1670.375, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 8.50, 1821.75, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 8.75, 1973.125, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 9.00, 2124.5, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 9.25, 2273.25, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 9.50, 2422.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 9.75, 2570.75, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 10.00, 2719.5, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 10.25, 2831.5, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 10.50, 2943.5, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 10.75, 3055.5, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 11.00, 3167.5, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 11.25, 3226.125, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 11.50, 3284.75, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 11.75, 3343.375, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 12.00, 3402.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 12.25, 3420.375, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 12.50, 3438.75, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 12.75, 3457.125, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 13.00, 3475.5, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 13.25, 3479.875, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 13.50, 3484.25, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 13.75, 3488.625, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 14.00, 3493.0, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 14.25, 3494.75, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 14.50, 3496.5, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 14.75, 3498.25, power_to_fit)
-#     power_to_fit = np.where(wind_to_fit == 15.00, 3500.0, power_to_fit)
-#
-#     # filtering wind input data for the range btw 4.0 and 15.0 m/s - ramp up stage of the curve
-#     idx_wind_filt = np.where((W_h < 15.0) * (W_h >= 4.0))
-#     wind_filt = W_h[idx_wind_filt]
-#
-#     # linear interpolation
-#     f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
-#
-#     # calculating wind power as a linear interpolation between points in the power curve
-#     power_interp = f(wind_filt)
-#
-#     # Filling out the output array p for wind in the btw 4.0 - 15.0 m/s range
-#     p[idx_wind_filt] = power_interp
-#
-#     # Filling out the out array p for wind wind in the 15.0 - 25.0 m/s range
-#     p = np.where((W_h <= 25.0) * (W_h >= 15.0), 3500.0, p)
-#
-#     return p
 
 
 def compute_solar_to_electric_eff(Temp_K, Rad, Sfcwind):
@@ -910,7 +397,8 @@ def process_climate_solar(nc_rsds, target_year, output_directory, rsds_var='rsds
     return arr_rsds
 
 
-def process_climate(nc_wind, nc_tas, nc_ps, nc_huss, target_year, output_directory, wind_var='sfcWind', tas_var='tas', ps_var='ps',
+def process_climate(nc_wind, nc_tas, nc_ps, nc_huss, target_year, output_directory,
+                    wind_var='sfcWind', tas_var='tas', ps_var='ps',
                     huss_var='huss'):
     """Process each required climate NetCDF file."""
 
@@ -1318,9 +806,6 @@ def get_hours_per_year(target_year) -> int:
     return yr_hours
 
 
-
-
-
 def calc_total_suitable_area_solar_PV(elev_raster, slope_raster, prot_raster, perm_raster, lulc_raster,
                                       output_directory,
                                       gridcellarea_raster):
@@ -1415,8 +900,10 @@ def calc_technical_potential_solar_PV(r_rsds, r_wind, r_tas, suit_sqkm_raster, y
     solar_potential_raster = os.path.join(output_directory, 'solar_PV_technical_potential_' + str(target_year) + '.npy')
     np.save(solar_potential_raster, solar_potential_KWh)
 
-    # OPTIONAL - define a general PV power production term (based on Crook et al. 2011 - https://doi.org/10.1039/C1EE01495A)
-    # Not used to compute the technical potential but it can be used for climate impact studies as in Crook et al. 2011
+    # OPTIONAL - define a general PV power production term
+    # -> (based on Crook et al. 2011 - https://doi.org/10.1039/C1EE01495A)
+    # Not used to compute the technical potential but it can be used for
+    # -> climate impact studies as in Crook et al. 2011
     # PV_prod = solar_rad * N_pv     # W/m^2
     # PV_prod_raster = os.path.join(output_directory, 'PV_prod_'+str(target_year)+'.npy')
     # np.save(PV_prod_raster, PV_prod)
@@ -1476,8 +963,10 @@ def calc_technical_potential_solar_CSP(r_rsds, r_tas, suit_sqkm_raster, yr_hours
                                           'solar_csp_technical_potential_' + str(target_year) + '.npy')
     np.save(solar_potential_raster, solar_potential_KWh)
 
-    # OPTIONAL - define a general CSP power production term (based on Crook et al. 2011 - https://doi.org/10.1039/C1EE01495A)
-    # Not used to compute the technical potential but it can be used for climate impact studies as in Crook et al. 2011
+    # OPTIONAL - define a general CSP power production term
+    # -> (based on Crook et al. 2011 - https://doi.org/10.1039/C1EE01495A)
+    # Not used to compute the technical potential but it can be used for
+    # -> climate impact studies as in Crook et al. 2011
     # CSP_prod = solar_rad * N_csp     # W/m^2
     # CSP_prod_raster = os.path.join(output_directory, 'CSP_prod_'+str(target_year)+'.npy')
     # np.save(CSP_prod_raster, CSP_prod)
@@ -1515,7 +1004,7 @@ def calc_technical_potential(r_wind, r_ps, r_tas, r_huss, suit_sqkm_raster, powe
     wadj = wind_speed_adjusted(wind_speed, rho_m)
 
     # Compute wind power at the hub height H using power curve from the representative turbine
-    p_daily = wind_power_curve(wadj,wind_turbname)
+    p_daily = wind_power_curve(wadj, wind_turbname)
     # sensitivities - other turbine models
     # p_daily = power_curve_vestas_v90_2000(wadj)
     # p_daily = power_curve_GE_2500(wadj)  # KW
