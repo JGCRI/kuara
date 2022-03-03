@@ -37,9 +37,9 @@ def dry_air_density_ideal(pressure, temperature):
 
     """
 
-    Rd = 287.058  # J / Kg * K
+    rd = 287.058  # J / Kg * K
 
-    return pressure / (Rd * temperature)
+    return pressure / (rd * temperature)
 
 
 def dry_air_density_humidity(rho_d, q):
@@ -100,9 +100,9 @@ def compute_wind_power(wind_speed_arr: np.ndarray,
     """
 
     # Creating np.array for power filled with zeros (p is the output array)
-    power_arr = np.zeros_like(wind_speed_arr)
+    # power_arr = np.zeros_like(wind_speed_arr)
 
-    # filtering wind input data for the range btw 2.5 (cut-in) and 22.0 m/s
+    # filtering wind input data for the range btw max and min speed for a turbine type
     idx_wind_filt = np.where((wind_speed_arr <= max_watt_hr) * (wind_speed_arr >= min_watt_hr))
     wind_filt = wind_speed_arr[idx_wind_filt]
 
@@ -113,9 +113,9 @@ def compute_wind_power(wind_speed_arr: np.ndarray,
     power_interp = f(wind_filt)
 
     # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
-    power_arr[idx_wind_filt] = power_interp
+    # power_arr = power_interp
 
-    return power_arr
+    return power_interp
 
 
 def wind_power_curve(W_h, wind_turbname):
