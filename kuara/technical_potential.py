@@ -99,9 +99,6 @@ def compute_wind_power(wind_speed_arr: np.ndarray,
 
     """
 
-    # Creating np.array for power filled with zeros (p is the output array)
-    # power_arr = np.zeros_like(wind_speed_arr)
-
     # filtering wind input data for the range btw max and min speed for a turbine type
     idx_wind_filt = np.where((wind_speed_arr <= max_watt_hr) * (wind_speed_arr >= min_watt_hr))
     wind_filt = wind_speed_arr[idx_wind_filt]
@@ -111,9 +108,6 @@ def compute_wind_power(wind_speed_arr: np.ndarray,
 
     # calculating wind power as a linear interpolation between points in the power curve
     power_interp = f(wind_filt)
-
-    # Filling out the output array p for wind in the btw 3.0 - 15.0 m/s range
-    # power_arr = power_interp
 
     return power_interp
 
@@ -128,7 +122,6 @@ def wind_power_curve(W_h, wind_turbname):
     """
 
     # import wind power data
-    global power_arr
     wind_power_file = pkg_resources.resource_filename('kuara', 'data/wind_power_data_points_to_fit.csv')
     df_wind_power_to_fit = pd.read_csv(wind_power_file, header=0)
 
@@ -249,8 +242,6 @@ def wind_power_curve(W_h, wind_turbname):
         res = np.ma.where((W_h < 13.5) * (W_h > 3.5))
         power_arr = lfit(W_h[res])
 
-        # res = np.ma.where((W_h <= 25.0) * (W_h >= 13.5))
-        # power_arr = 1500.0  # rated power
         power_arr = np.where((W_h <= 25.0) * (W_h >= 13.5), 1500.0, power_arr)
 
     return power_arr
@@ -433,16 +424,6 @@ def process_climate(nc_wind, nc_tas, nc_ps, nc_huss, target_year, output_directo
     arr_tas_raster = os.path.join(output_directory, 'tas_degK_' + str(target_year) + '.npy')
     np.save(arr_tas_raster, arr_tas_mean)
 
-    # daily to yearly mean
-    # arr_ps_mean = np.mean(arr_ps, axis=0)
-    # arr_ps_raster = os.path.join(output_directory, 'ps_Pa_'+str(target_year)+'.npy')
-    # np.save(arr_ps_raster, arr_ps_mean)
-
-    # daily to yearly mean
-    # arr_huss_mean = np.mean(arr_huss, axis=0)
-    # arr_huss_raster = os.path.join(output_directory, 'huss_kgperkg_'+str(target_year)+'.npy')
-    # np.save(arr_huss_raster, arr_huss_mean)
-
     return arr_wind, arr_tas, arr_ps, arr_huss
 
 
@@ -502,110 +483,6 @@ def process_lulc(r_file):
     arr = np.where(arr == 230, 0, arr)
 
     return arr
-
-
-'''
-def process_lulc(r_file):
-    # wind high suitability (S_high) - based on Lu et al. 2009
-
-    r = rasterio.open(r_file)
-
-    arr = r.read(1).astype(np.float64)
-
-    arr = np.where(arr == 11, 0, arr)
-    arr = np.where(arr == 14, 1.0, arr)
-    arr = np.where(arr == 20, 1.0, arr)
-    arr = np.where(arr == 30, 1.0, arr)
-    arr = np.where(arr == 40, 0, arr)
-    arr = np.where(arr == 50, 0, arr)
-    arr = np.where(arr == 60, 0, arr)
-    arr = np.where(arr == 70, 0, arr)
-    arr = np.where(arr == 90, 0, arr)
-    arr = np.where(arr == 100, 0, arr)
-    arr = np.where(arr == 110, 1.0, arr)
-    arr = np.where(arr == 120, 1.0, arr)
-    arr = np.where(arr == 130, 1.0, arr)
-    arr = np.where(arr == 140, 1.0, arr)
-    arr = np.where(arr == 150, 1.0, arr)
-    arr = np.where(arr == 160, 0, arr)
-    arr = np.where(arr == 170, 0, arr)
-    arr = np.where(arr == 180, 0, arr)
-    arr = np.where(arr == 190, 0, arr)
-    arr = np.where(arr == 200, 1.0, arr)
-    arr = np.where(arr == 210, 0, arr)
-    arr = np.where(arr == 220, 0, arr)
-    arr = np.where(arr == 230, 0, arr)
-
-    return arr
-
-
-def process_lulc(r_file):
-    # wind low suitability 1 (S_low) - based on Zhou et al. 2012 (low case)
-
-    r = rasterio.open(r_file)
-
-    arr = r.read(1).astype(np.float64)
-
-    arr = np.where(arr == 11, 0, arr)
-    arr = np.where(arr == 14, 0.6, arr)
-    arr = np.where(arr == 20, 0.6, arr)
-    arr = np.where(arr == 30, 0.6, arr)
-    arr = np.where(arr == 40, 0.0, arr)
-    arr = np.where(arr == 50, 0.0, arr)
-    arr = np.where(arr == 60, 0.0, arr)
-    arr = np.where(arr == 70, 0.0, arr)
-    arr = np.where(arr == 90, 0.0, arr)
-    arr = np.where(arr == 100, 0.0, arr)
-    arr = np.where(arr == 110, 0.1, arr)
-    arr = np.where(arr == 120, 0.1, arr)
-    arr = np.where(arr == 130, 0.2, arr)
-    arr = np.where(arr == 140, 0.2, arr)
-    arr = np.where(arr == 150, 0.2, arr)
-    arr = np.where(arr == 160, 0, arr)
-    arr = np.where(arr == 170, 0, arr)
-    arr = np.where(arr == 180, 0, arr)
-    arr = np.where(arr == 190, 0, arr)
-    arr = np.where(arr == 200, 0.1, arr)
-    arr = np.where(arr == 210, 0, arr)
-    arr = np.where(arr == 220, 0, arr)
-    arr = np.where(arr == 230, 0, arr)
-
-    return arr
-
-
-def process_lulc(r_file):
-    # wind low suitability 2 (S_low_II) - based on Deng et al. 2015 (low case)
-
-    r = rasterio.open(r_file)
-
-    arr = r.read(1).astype(np.float64)
-
-    arr = np.where(arr == 11, 0, arr)
-    arr = np.where(arr == 14, 0.03, arr)
-    arr = np.where(arr == 20, 0.03, arr)
-    arr = np.where(arr == 30, 0.03, arr)
-    arr = np.where(arr == 40, 0.005, arr)
-    arr = np.where(arr == 50, 0.005, arr)
-    arr = np.where(arr == 60, 0.005, arr)
-    arr = np.where(arr == 70, 0.005, arr)
-    arr = np.where(arr == 90, 0.005, arr)
-    arr = np.where(arr == 100, 0.005, arr)
-    arr = np.where(arr == 110, 0.03, arr)
-    arr = np.where(arr == 120, 0.03, arr)
-    arr = np.where(arr == 130, 0.03, arr)
-    arr = np.where(arr == 140, 0.03, arr)
-    arr = np.where(arr == 150, 0.03, arr)
-    arr = np.where(arr == 160, 0, arr)
-    arr = np.where(arr == 170, 0, arr)
-    arr = np.where(arr == 180, 0, arr)
-    arr = np.where(arr == 190, 0, arr)
-    arr = np.where(arr == 200, 0.03, arr)
-    arr = np.where(arr == 210, 0, arr)
-    arr = np.where(arr == 220, 0, arr)
-    arr = np.where(arr == 230, 0, arr)
-
-    return arr
-'''
 
 
 def process_elevation_solar(r_file):
@@ -670,111 +547,6 @@ def process_lulc_solar(r_file):
     arr = np.where(arr == 230, 0.0, arr)
 
     return arr
-
-
-'''
-
-def process_lulc_solar(r_file):
-    # Solar low suitability 2 (S_low_II) - based on Deng et al. 2015 (medium case)
-
-    r = rasterio.open(r_file)
-
-    arr = r.read(1).astype(np.float64)
-
-    arr = np.where(arr == 11, 0.0, arr)
-    arr = np.where(arr == 14, 0.005, arr)
-    arr = np.where(arr == 20, 0.005, arr)
-    arr = np.where(arr == 30, 0.005, arr)
-    arr = np.where(arr == 40, 0.0, arr)
-    arr = np.where(arr == 50, 0.0, arr)
-    arr = np.where(arr == 60, 0.0, arr)
-    arr = np.where(arr == 70, 0.0, arr)
-    arr = np.where(arr == 90, 0.0, arr)
-    arr = np.where(arr == 100, 0.0, arr)
-    arr = np.where(arr == 110, 0.01, arr)
-    arr = np.where(arr == 120, 0.01, arr)
-    arr = np.where(arr == 130, 0.01, arr)
-    arr = np.where(arr == 140, 0.01, arr)
-    arr = np.where(arr == 150, 0.01, arr)
-    arr = np.where(arr == 160, 0.0, arr)
-    arr = np.where(arr == 170, 0.0, arr)
-    arr = np.where(arr == 180, 0.0, arr)
-    arr = np.where(arr == 190, 0.0, arr)
-    arr = np.where(arr == 200, 0.01, arr)
-    arr = np.where(arr == 210, 0.0, arr)
-    arr = np.where(arr == 220, 0.0, arr)
-    arr = np.where(arr == 230, 0.0, arr)
-
-    return arr
-
-
-def process_lulc_solar(r_file):
-    # Solar low suitability (S_low) - based on Deng et al. 2015 (low case)
-
-    r = rasterio.open(r_file)
-
-    arr = r.read(1).astype(np.float64)
-
-    arr = np.where(arr == 11, 0.0, arr)
-    arr = np.where(arr == 14, 0.001, arr)
-    arr = np.where(arr == 20, 0.001, arr)
-    arr = np.where(arr == 30, 0.001, arr)
-    arr = np.where(arr == 40, 0.0, arr)
-    arr = np.where(arr == 50, 0.0, arr)
-    arr = np.where(arr == 60, 0.0, arr)
-    arr = np.where(arr == 70, 0.0, arr)
-    arr = np.where(arr == 90, 0.0, arr)
-    arr = np.where(arr == 100, 0.0, arr)
-    arr = np.where(arr == 110, 0.005, arr)
-    arr = np.where(arr == 120, 0.005, arr)
-    arr = np.where(arr == 130, 0.005, arr)
-    arr = np.where(arr == 140, 0.005, arr)
-    arr = np.where(arr == 150, 0.005, arr)
-    arr = np.where(arr == 160, 0.0, arr)
-    arr = np.where(arr == 170, 0.0, arr)
-    arr = np.where(arr == 180, 0.0, arr)
-    arr = np.where(arr == 190, 0.0, arr)
-    arr = np.where(arr == 200, 0.005, arr)
-    arr = np.where(arr == 210, 0.0, arr)
-    arr = np.where(arr == 220, 0.0, arr)
-    arr = np.where(arr == 230, 0.0, arr)
-
-    return arr
-
-
-def process_lulc_solar(r_file):
-    # Solar high suitability (S_high) - based on Dupont et al. 2020 (high case)
-
-    r = rasterio.open(r_file)
-
-    arr = r.read(1).astype(np.float64)
-
-    arr = np.where(arr == 11, 0.0, arr)
-    arr = np.where(arr == 14, 0.1, arr)
-    arr = np.where(arr == 20, 0.05, arr)
-    arr = np.where(arr == 30, 0.05, arr)
-    arr = np.where(arr == 40, 0.0, arr)
-    arr = np.where(arr == 50, 0.0, arr)
-    arr = np.where(arr == 60, 0.0, arr)
-    arr = np.where(arr == 70, 0.0, arr)
-    arr = np.where(arr == 90, 0.0, arr)
-    arr = np.where(arr == 100, 0.0, arr)
-    arr = np.where(arr == 110, 0.05, arr)
-    arr = np.where(arr == 120, 0.05, arr)
-    arr = np.where(arr == 130, 0.1, arr)
-    arr = np.where(arr == 140, 0.1, arr)
-    arr = np.where(arr == 150, 0.1, arr)
-    arr = np.where(arr == 160, 0.0, arr)
-    arr = np.where(arr == 170, 0.0, arr)
-    arr = np.where(arr == 180, 0.0, arr)
-    arr = np.where(arr == 190, 0.0, arr)
-    arr = np.where(arr == 200, 0.1, arr)
-    arr = np.where(arr == 210, 0.0, arr)
-    arr = np.where(arr == 220, 0.0, arr)
-    arr = np.where(arr == 230, 0.0, arr)
-
-    return arr
-'''
 
 
 def calc_final_suitability(elev_array, slope_array, prot_array, perm_array, lulc_array):
@@ -851,9 +623,6 @@ def calc_total_suitable_area_solar_CSP(elev_raster, slope_raster, prot_raster, p
 
     # calculate the suitable area in sqkm per gridcell (fi * ai)
     f_suit_sqkm = f_suit * gridcellarea[::-1, :]  # need to invert the lat index in gridcellarea
-
-    # out = os.path.join(output_directory, 'gridcellarea0p5deg.npy')
-    # np.save(out, gridcellarea)
 
     out = os.path.join(output_directory, 'solar_CSP_suitability.npy')
     np.save(out, f_suit)
