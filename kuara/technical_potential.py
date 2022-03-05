@@ -9,119 +9,147 @@ import xarray as xr
 import rasterio
 
 
-def wind_power_law(wind_speed: np.ndarray,
-              hub_height_m: float = 100.0,
-              wind_speed_height_m: float = 10.0,
-              wind_power_law_exp: float = (1.0/7.0)):
-    """Extrapolates wind speed of a reference height to the turbine hub height by using the power law.
+def extrap_wind_speed_at_hub_height(wind_speed: np.ndarray,
+                                    hub_height_m: float = 100.0,
+                                    ref_height_m: float = 10.0,
+                                    wind_power_law_exp: float = (1.0/7.0)) -> np.ndarray:
+
+    """Extrapolates wind speed of a reference height to the turbine hub height by using a power law.
 
     Sources: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
+             Hsu et al., 1994,JAMC, https://doi.org/10.1175/1520-0450(1994)033<0757:DTPLWP>2.0.CO;2
 
+    Variables:
         :param wind_speed:                          wind speed (m/s) at ref. height
         :type wind_speed:                           numpy array
 
         :param hub_height_m:                        turbine hub height (m), default 100m
         :type hub_height_m:                         float
 
-        :param wind_speed_height_m:                 ref. height (m) of wind speed, default 10m
-        :type wind_speed_height_m:                  float
+        :param ref_height_m:                        ref. height (m) of wind speed, default 10m
+        :type ref_height_m:                         float
 
         :param wind_power_law_exp:                  exponent of wind power law, default 1/7 for onshore wind,
-                                                    1/9 for offshore wind (Hsu et al., 1994: https://doi.org/10.1175/1520-0450(1994)033<0757:DTPLWP>2.0.CO;2)
+                                                    1/9 for offshore wind
         :type wind_power_law_exp:                   float
 
-        :return:                                    array of wind speed (m/s) at the turbine hub height (m)
+        :return wind_speed_hub_ht:                  array of wind speed (m/s) at the turbine hub height
 
     """
 
-    return wind_speed * ((hub_height_m / wind_speed_height_m) ** wind_power_law_exp)
+    wind_speed_hub_ht = wind_speed * ((hub_height_m / ref_height_m) ** wind_power_law_exp)
+
+    return wind_speed_hub_ht
 
 
 def dry_air_density_ideal(pressure: np.ndarray,
-                          temperature: np.ndarray):
+                          temperature: np.ndarray) -> np.ndarray:
+
     """Computes dry air density based on the ideal gas law.
 
     Source: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
 
+    Variables:
         :param pressure:                        surface pressure (Pascal = J/m3)
         :type pressure:                         numpy array
 
         :param temperature:                     surface temperature (K)
         :type temperature:                      numpy array
 
-        :return:                                rho_d - array of dry air density (kg/m3)
+        :return dry_air_dens:                   array of dry air density (kg/m3)
 
     """
 
     # specific gas constant of air (J / Kg * K)
     sp_gas_constant = 287.058
 
-    return pressure / (sp_gas_constant * temperature)
+    dry_air_dens = pressure / (sp_gas_constant * temperature)
+
+    return dry_air_dens
 
 
-def dry_air_density_humidity(rho_d, q):
+def dry_air_density_humidity(dry_air_dens: np.ndarray,
+                             sp_humidity: np.ndarray) -> np.ndarray:
+
     """Corrects dry air density for humidity
-        Source: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
 
-        inputs:   rho_d  - dry air density (kg/m3)
-                  q      - surface specific humidity (Kg/Kg)
+    Source: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
 
-        output:   rho_m - air density corrected for humidity (kg/m3)
+    Variables:
+        :param dry_air_dens:                    dry air density (kg/m3)
+        :type dry_air_dens:                     numpy array
 
-    """
+        :param sp_humidity:                     surface specific humidity (Kg/Kg)
+        :type sp_humidity:                      numpy array
 
-    rho_m = rho_d * ((1.0 + q) / (1.0 + 1.609 * q))
-    return rho_m
-
-
-def wind_speed_adjusted(w, dens):
-    """Designed to account for the differences in air density at the rotor elevations as compared with
-        standard (sea level) conditions.
-        Sources: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9;
-                 IEC61400-12-1 (2005)
-
-        inputs:   w    - wind speed (m/s)
-                  dens - air density (kg/m3)
-
-        outputs:  wadj    - wind speed adjusted for air density (m/s)
+        :return dry_air_dens_hum:               array of air density (kg/m3) corrected for humidity
 
     """
 
-    rho_std = 1.225
-    wadj = w * ((dens / rho_std) ** (1.0 / 3.0))
-    return wadj
+    dry_air_dens_hum = dry_air_dens * ((1.0 + sp_humidity) / (1.0 + 1.609 * sp_humidity))
+
+    return dry_air_dens_hum
 
 
-def compute_wind_power(wind_speed_arr: np.ndarray,
-                       wind_to_fit: np.ndarray,
-                       power_to_fit: np.ndarray,
-                       min_watt_hr: float,
-                       max_watt_hr: float) -> np.ndarray:
-    """Compute wind power for the target turbine model.
+def adjust_wind_speed_for_air_density(wind_speed: np.ndarray,
+                                      dry_air_dens_hum: np.ndarray) -> np.ndarray:
 
-    :param wind_speed_arr:               array of wind speeds (m/s) at the turbine hub height (m)
-    :type wind_speed_arr:                numpy array
+    """Adjust wind speed to account for the differences in air density between rotor elevations
+    and standard (sea level) condition.
 
-    :param wind_to_fit:                 wind data points to fit power curve
-    :type wind_to_fit:                  numpy array
+    Sources: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9;
+             IEC61400-12-1 (2005)
 
-    :param power_to_fit:                 power data points to fit power curve
-    :type power_to_fit:                  numpy array
+    Variables:
+        :param wind_speed:                      wind speed (m/s)
+        :type wind_speed:                       numpy array
 
-    :param min_watt_hr:                 Minimum power in watt hours.
-    :type min_watt_hr:                  float
+        :param dry_air_dens_hum:                air density (kg/m3) corrected for humidity
+        :type dry_air_dens_hum:                 numpy array
 
-    :param max_watt_hr:                 Maximum power in watt hours.
-    :type max_watt_hr:                  float
+        :return wind_speed_adj:                 array of wind speed (m/s) adjusted for air density
 
     """
 
-    # filtering wind input data for the range btw max and min speed for a turbine type
-    idx_wind_filt = np.where((wind_speed_arr <= max_watt_hr) * (wind_speed_arr >= min_watt_hr))
-    wind_filt = wind_speed_arr[idx_wind_filt]
+    wind_speed_adj = wind_speed * ((dry_air_dens_hum / 1.225) ** (1.0 / 3.0))
 
-    # linear interpolation
-    f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")  # (x, y) pair
+    return wind_speed_adj
+
+
+def common_wind_power_curve(wind_speed_hub_ht_adj: np.ndarray,
+                            wind_to_fit: np.ndarray,
+                            power_to_fit: np.ndarray,
+                            min_wind_speed: float = 2.0,
+                            max_wind_speed: float = 25.0) -> np.ndarray:
+
+    """Common function to compute wind power for most of the turbine types
+
+    Variables:
+        :param wind_speed_hub_ht_adj:           wind speeds (m/s) at the turbine hub height, adjusted for air density
+        :type wind_speed_hub_ht_adj:            numpy array
+
+        :param wind_to_fit:                     turbine-specific wind speed (m/s) data points to fit power curve
+        :type wind_to_fit:                      numpy array
+
+        :param power_to_fit:                    turbine-specific power (kW) data points to fit power curve
+        :type power_to_fit:                     numpy array
+
+        :param min_wind_speed:                  turbine-specific minimum wind speed (m/s) limit, default 2.0 m/s
+        :type min_wind_speed:                   float
+
+        :param max_wind_speed:                  turbine-specific maximum wind speed (m/s) limit, default 25.0 m/s
+        :type max_wind_speed:                   float
+
+        :return power_interp:                   array of wind power (kW) for specified turbine type
+
+    """
+
+    # filtering wind speed input data for the min and max speed range of a turbine type
+    idx_wind_filt = np.where((wind_speed_hub_ht_adj <= max_wind_speed) * (wind_speed_hub_ht_adj >= min_wind_speed))
+    wind_filt = wind_speed_hub_ht_adj[idx_wind_filt]
+
+    # linear interpolation: (x, y) pair
+    f = interpolate.interp1d(wind_to_fit, power_to_fit, fill_value="extrapolate")
 
     # calculating wind power as a linear interpolation between points in the power curve
     power_interp = f(wind_filt)
@@ -129,12 +157,44 @@ def compute_wind_power(wind_speed_arr: np.ndarray,
     return power_interp
 
 
-def wind_power_curve(W_h, wind_turbname):
-    """Compute wind power for any turbine.
+def compute_wind_power(wind_speed_hub_ht_adj: np.ndarray,
+                       wind_turbname: str) -> np.ndarray:
 
-        inputs:   W_h - array of wind speeds at the turbine hub height H (m/s)
+    """Compute wind power for a specified turbine type
 
-        outputs:  power_arr   - array of wind power at the turbine hub height H (kW)
+    Sources of turbine specifications:
+        GE1500:             https://www.en.wind-turbine-models.com/turbines/565-general-electric-ge-1.5s
+
+        GE_2500:            https://www.ge.com/in/wind-energy/2.5-MW-wind-turbine
+                            https://www.thewindpower.net/turbine_en_382_ge-energy_2.5-100.php
+                            (commissioning: 2006, indicated for low and medium wind conditions)
+
+        vestas_v136_3450:   https://www.vestas.com/en/products/4-mw-platform/v136-_3_45_mw#!about
+                            https://www.thewindpower.net/turbine_en_1074_vestas_v136-3450.php
+                            (commissioning: 2015, indicated for low and medium wind conditions)
+
+        vestas_v90_2000:    https://www.vestas.com/en/products/4-mw-platform/v136-_3_45_mw#!about
+                            https://www.thewindpower.net/turbine_en_32_vestas_v90-2000.php
+                            (commissioning: 2004, indicated for low and medium wind conditions)
+
+        E101_3050:          https://www.thewindpower.net/turbine_en_924_enercon_e101-3050.php
+                            https://www.enercon.de/fileadmin/Redakteur/Medien-Portal/broschueren/pdf/en/ENERCON_Produkt_en_06_2015.pdf
+                            (commissioning: 2012, indicated for medium wind conditions)
+
+        Gamesa_G114_2000:   https://en.wind-turbine-models.com/turbines/428-gamesa-g114-2.0mw
+                            https://www.thewindpower.net/turbine_en_860_gamesa_g114-2000.php
+                            (indicated for low wind conditions)
+
+        IEC_classII_3500:   Eurek et al. 2017,  http://dx.doi.org/10.1016/j.eneco.2016.11.015
+
+    Variables:
+        :param wind_speed_hub_ht_adj:           wind speeds (m/s) at the turbine hub height, adjusted for air density
+        :type wind_speed_hub_ht_adj:            numpy array
+
+        :param wind_turbname:                   wind turbine name
+        :type wind_turbname:                    str
+
+        :return power_arr:                      array of wind power (kW) for specified turbine type
 
     """
 
@@ -152,102 +212,17 @@ def wind_power_curve(W_h, wind_turbname):
     wind_to_fit = wind_to_fit[~np.isnan(wind_to_fit)]
     power_to_fit = power_to_fit[~np.isnan(power_to_fit)]
 
-    if wind_turbname == 'vestas_v136_3450':
-        """Computes wind power assuming characteristics of the wind turbine model V136-3.45 MW
-           (indicated in low- and medium-wind conditions: 
-           https://www.vestas.com/en/products/4-mw-platform/v136-_3_45_mw#!about)
-            Specifications and power curve available at:
-            https://www.thewindpower.net/turbine_en_1074_vestas_v136-3450.php
-            brochure: 
-            http://nozebra.ipapercms.dk/Vestas/Communication/Productbrochure/4MWbrochure/4MWProductBrochure/?page=14
-            Commissioning: 2015
-        """
+    wind_speed_range = {'GE1500': (3.5, 25.0),
+                        'GE_2500': (3.0, 25.0),
+                        'vestas_v136_3450': (2.5, 22.0),
+                        'vestas_v90_2000': (3.0, 25.0),
+                        'E101_3050': (2.0, 25.0),
+                        'Gamesa_G114_2000': (2.5, 25.0),
+                        'IEC_classII_3500': (4.0, 25.0)
+                        }
 
-        power_arr = compute_wind_power(wind_speed_arr=W_h,
-                                       wind_to_fit=wind_to_fit,
-                                       power_to_fit=power_to_fit,
-                                       min_watt_hr=2.5,
-                                       max_watt_hr=22.0)
 
-    elif wind_turbname == 'vestas_v90_2000':
-        """Computes wind power assuming characteristics of the wind turbine model vestas_v90_2000 
-           (indicated in low- and medium-wind conditions: 
-           https://www.vestas.com/en/products/4-mw-platform/v136-_3_45_mw#!about)
-            Specifications and power curve available at:
-            https://www.thewindpower.net/turbine_en_32_vestas_v90-2000.php
-            Commissioning: 2004
-
-        """ 
-        power_arr = compute_wind_power(wind_speed_arr=W_h,
-                                       wind_to_fit=wind_to_fit,
-                                       power_to_fit=power_to_fit,
-                                       min_watt_hr=3.0,
-                                       max_watt_hr=25.0)
-
-    elif wind_turbname == 'GE_2500':
-        """Computes wind power assuming characteristics of the wind turbine model GE 2.5-100 MW
-           (indicated in low- and medium-wind conditions: https://www.ge.com/in/wind-energy/2.5-MW-wind-turbine
-            Specifications and power curve available at:
-            https://www.thewindpower.net/turbine_en_382_ge-energy_2.5-100.php
-            Commissioning: 2006
-        """
-
-        power_arr = compute_wind_power(wind_speed_arr=W_h,
-                                       wind_to_fit=wind_to_fit,
-                                       power_to_fit=power_to_fit,
-                                       min_watt_hr=3.0,
-                                       max_watt_hr=25.0)
-
-    elif wind_turbname == 'E101_3050':
-        """Computes wind power assuming characteristics of the wind turbine model E-101 3.05 MW
-           Indicated for medium-wind conditions
-           Specifications and power curve available at:
-           https://www.thewindpower.net/turbine_en_924_enercon_e101-3050.php and
-           https://www.enercon.de/fileadmin/Redakteur/Medien-Portal/broschueren/pdf/en/ENERCON_Produkt_en_06_2015.pdf
-           Commissioning: 2012
-        """
-
-        power_arr = compute_wind_power(wind_speed_arr=W_h,
-                                       wind_to_fit=wind_to_fit,
-                                       power_to_fit=power_to_fit,
-                                       min_watt_hr=2.0,
-                                       max_watt_hr=25.0)
-
-    elif wind_turbname == 'Gamesa_G114_2000':
-        """Computes wind power assuming characteristics of the wind turbine model Gamesa G114-2000
-            indicated for class III (low winds)
-            https://en.wind-turbine-models.com/turbines/428-gamesa-g114-2.0mw
-            https://www.thewindpower.net/turbine_en_860_gamesa_g114-2000.php
-
-        """
-
-        power_arr = compute_wind_power(wind_speed_arr=W_h,
-                                       wind_to_fit=wind_to_fit,
-                                       power_to_fit=power_to_fit,
-                                       min_watt_hr=2.5,
-                                       max_watt_hr=25.0)
-
-    elif wind_turbname == 'IEC_classII_3500':
-        """Computes wind power assuming characteristics of the: Wind Turbine 3.5 MW (IEC) class II composite
-            Reference: Eurek et al. 2017,  http://dx.doi.org/10.1016/j.eneco.2016.11.015
-
-        """
-
-        power_arr = compute_wind_power(wind_speed_arr=W_h,
-                                       wind_to_fit=wind_to_fit,
-                                       power_to_fit=power_to_fit,
-                                       min_watt_hr=4.0,
-                                       max_watt_hr=15.0)
-
-        # Filling out the out array power_arr for wind wind in the 15.0 - 25.0 m/s range
-        power_arr = np.where((W_h <= 25.0) * (W_h >= 15.0), 3500.0, power_arr)
-
-    elif wind_turbname == 'GE1500':
-        """Computes wind power assuming characteristics of the: Wind Turbine Model GE 1.5s
-            Specifications and power curve available at:
-            https://www.en.wind-turbine-models.com/turbines/565-general-electric-ge-1.5s
-
-        """
+    if wind_turbname == 'GE1500':
 
         # Generate Sixth Order Fit Coef
         coef_lin = np.polyfit(wind_to_fit, power_to_fit, 6)
@@ -256,10 +231,29 @@ def wind_power_curve(W_h, wind_turbname):
         lfit = np.poly1d(coef_lin)
 
         # Aplying to the wind dataset
-        res = np.ma.where((W_h < 13.5) * (W_h > 3.5))
-        power_arr = lfit(W_h[res])
+        res = np.ma.where((wind_speed_hub_ht_adj < 13.5) * (wind_speed_hub_ht_adj > wind_speed_range[wind_turbname][0]))
+        power_arr = lfit(wind_speed_hub_ht_adj[res])
 
-        power_arr = np.where((W_h <= 25.0) * (W_h >= 13.5), 1500.0, power_arr)
+        power_arr = np.where((wind_speed_hub_ht_adj <= wind_speed_range[wind_turbname][1]) * (wind_speed_hub_ht_adj >= 13.5), 1500.0, power_arr)
+
+
+    elif wind_turbname == 'IEC_classII_3500':
+        power_arr = common_wind_power_curve(wind_speed_hub_ht_adj,
+                                            wind_to_fit,
+                                            power_to_fit,
+                                            min_wind_speed=wind_speed_range[wind_turbname][0],
+                                            max_wind_speed=15.0)
+
+        # Filling out the power_arr for wind speed in the 15.0 - 25.0 m/s range
+        power_arr = np.where((wind_speed_hub_ht_adj <= wind_speed_range[wind_turbname][1]) * (wind_speed_hub_ht_adj >= 15.0), 3500.0, power_arr)
+
+
+    else:
+        power_arr = common_wind_power_curve(wind_speed_hub_ht_adj,
+                                            wind_to_fit,
+                                            power_to_fit,
+                                            min_wind_speed=wind_speed_range[wind_turbname][0],
+                                            max_wind_speed=wind_speed_range[wind_turbname][1])
 
     return power_arr
 
@@ -769,10 +763,10 @@ def calc_technical_potential(r_wind, r_ps, r_tas, r_huss, suit_sqkm_raster, powe
 
     # calculate wind speed at the hub height
     wind = r_wind
-    wind_speed = wind_power_law(wind, 125)  # Central based on Rinne et al. 2018
-    # wind_speed = wind_power_law(wind, 100) # Sensitivity based on Rinne et al. 2018
-    # wind_speed = wind_power_law(wind, 75)  # Sensitivity based on Rinne et al. 2018
-    # wind_speed = wind_power_law(wind, 150) # Sensitivity based on Rinne et al. 2018
+    wind_speed = extrap_wind_speed_at_hub_height(wind, 125)  # Central based on Rinne et al. 2018
+    # wind_speed = extrap_wind_speed_at_hub_height(wind, 100) # Sensitivity based on Rinne et al. 2018
+    # wind_speed = extrap_wind_speed_at_hub_height(wind, 75)  # Sensitivity based on Rinne et al. 2018
+    # wind_speed = extrap_wind_speed_at_hub_height(wind, 150) # Sensitivity based on Rinne et al. 2018
 
     # rho - dry air density (kg/m3)
     ps = r_ps
@@ -787,10 +781,10 @@ def calc_technical_potential(r_wind, r_ps, r_tas, r_huss, suit_sqkm_raster, powe
 
     # wadj - wind speed adjusted for air density (m/s)
     # Note - if the correction for humidity is not made, rho_m is replaced by rho_d (dry air density)
-    wadj = wind_speed_adjusted(wind_speed, rho_m)
+    wadj = adjust_wind_speed_for_air_density(wind_speed, rho_m)
 
     # Compute wind power at the hub height H using power curve from the representative turbine
-    p_daily = wind_power_curve(wadj, wind_turbname)
+    p_daily = compute_wind_power(wadj, wind_turbname)
     # sensitivities - other turbine models
     # p_daily = power_curve_vestas_v90_2000(wadj)
     # p_daily = power_curve_GE_2500(wadj)  # KW

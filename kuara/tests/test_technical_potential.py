@@ -7,7 +7,7 @@ class TestTechnicalPotential(unittest.TestCase):
 
     def test_power_law(self):
 
-        result = tp.wind_power_law(7, 100)
+        result = tp.extrap_wind_speed_at_hub_height(7, 100)
 
         self.assertEqual(9.726468460611963, result)
 
@@ -26,7 +26,7 @@ class TestTechnicalPotential(unittest.TestCase):
 
     def test_wind_speed_adjusted(self):
 
-        result = tp.wind_speed_adjusted(7.77, 7.77)
+        result = tp.adjust_wind_speed_for_air_density(7.77, 7.77)
 
         self.assertEqual(14.382994978685954, result)
 
