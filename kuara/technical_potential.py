@@ -9,37 +9,54 @@ import xarray as xr
 import rasterio
 
 
-def power_law(wind_speed, hub_height_m=100):
-    """Extrapolates wind speed at 10m to the turbine hub height (H) by using the power law.
+def wind_power_law(wind_speed: np.ndarray,
+              hub_height_m: float = 100.0,
+              wind_speed_height_m: float = 10.0,
+              wind_power_law_exp: float = (1.0/7.0)):
+    """Extrapolates wind speed of a reference height to the turbine hub height by using the power law.
 
     Sources: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
 
-    :param wind_speed:                              w - wind speed at 10m (m/s)
+        :param wind_speed:                          wind speed (m/s) at ref. height
+        :type wind_speed:                           numpy array
 
-    :param hub_height_m:                            H - Turbine hub height (m)
+        :param hub_height_m:                        turbine hub height (m), default 100m
+        :type hub_height_m:                         float
 
-    :return:                                        W_h - wind speed at the turbine hub height H (m/s)
+        :param wind_speed_height_m:                 ref. height (m) of wind speed, default 10m
+        :type wind_speed_height_m:                  float
+
+        :param wind_power_law_exp:                  exponent of wind power law, default 1/7 for onshore wind,
+                                                    1/9 for offshore wind (Hsu et al., 1994: https://doi.org/10.1175/1520-0450(1994)033<0757:DTPLWP>2.0.CO;2)
+        :type wind_power_law_exp:                   float
+
+        :return:                                    array of wind speed (m/s) at the turbine hub height (m)
 
     """
 
-    return wind_speed * ((hub_height_m / 10.0) ** (1.0 / 7.0))
+    return wind_speed * ((hub_height_m / wind_speed_height_m) ** wind_power_law_exp)
 
 
-def dry_air_density_ideal(pressure, temperature):
+def dry_air_density_ideal(pressure: np.ndarray,
+                          temperature: np.ndarray):
     """Computes dry air density based on the ideal gas law.
 
     Source: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
 
-        inputs:   p   - pressure (Pascal = J/m3)
-                  t   - temperature (K)
+        :param pressure:                        surface pressure (Pascal = J/m3)
+        :type pressure:                         numpy array
 
-        output:   rho - dry air density (kg/m3)
+        :param temperature:                     surface temperature (K)
+        :type temperature:                      numpy array
+
+        :return:                                rho_d - array of dry air density (kg/m3)
 
     """
 
-    rd = 287.058  # J / Kg * K
+    # specific gas constant of air (J / Kg * K)
+    sp_gas_constant = 287.058
 
-    return pressure / (rd * temperature)
+    return pressure / (sp_gas_constant * temperature)
 
 
 def dry_air_density_humidity(rho_d, q):
@@ -82,7 +99,7 @@ def compute_wind_power(wind_speed_arr: np.ndarray,
                        max_watt_hr: float) -> np.ndarray:
     """Compute wind power for the target turbine model.
 
-    :param wind_speed_arr:               array of wind speeds at the turbine hub height H (m/s)
+    :param wind_speed_arr:               array of wind speeds (m/s) at the turbine hub height (m)
     :type wind_speed_arr:                numpy array
 
     :param wind_to_fit:                 wind data points to fit power curve
@@ -752,10 +769,10 @@ def calc_technical_potential(r_wind, r_ps, r_tas, r_huss, suit_sqkm_raster, powe
 
     # calculate wind speed at the hub height
     wind = r_wind
-    wind_speed = power_law(wind, 125)  # Central based on Rinne et al. 2018
-    # wind_speed = power_law(wind, 100) # Sensitivity based on Rinne et al. 2018
-    # wind_speed = power_law(wind, 75)  # Sensitivity based on Rinne et al. 2018
-    # wind_speed = power_law(wind, 150) # Sensitivity based on Rinne et al. 2018
+    wind_speed = wind_power_law(wind, 125)  # Central based on Rinne et al. 2018
+    # wind_speed = wind_power_law(wind, 100) # Sensitivity based on Rinne et al. 2018
+    # wind_speed = wind_power_law(wind, 75)  # Sensitivity based on Rinne et al. 2018
+    # wind_speed = wind_power_law(wind, 150) # Sensitivity based on Rinne et al. 2018
 
     # rho - dry air density (kg/m3)
     ps = r_ps

@@ -7,7 +7,7 @@ class TestTechnicalPotential(unittest.TestCase):
 
     def test_power_law(self):
 
-        result = tp.power_law(7, 100)
+        result = tp.wind_power_law(7, 100)
 
         self.assertEqual(9.726468460611963, result)
 
