@@ -58,7 +58,7 @@ class TestTechnicalPotential(unittest.TestCase):
 
         pass
 
-    def test_compute_solar_to_electric_eff(self):
+    def test_adjust_pv_panel_eff_for_atm_condition(self):
 
         pass
 

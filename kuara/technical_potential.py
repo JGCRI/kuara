@@ -258,32 +258,69 @@ def compute_wind_power(wind_speed_hub_ht_adj: np.ndarray,
     return power_arr
 
 
-def compute_solar_to_electric_eff(Temp_K, Rad, Sfcwind):
+def adjust_pv_panel_eff_for_atm_condition(temp_ambient_k: np.ndarray,
+                                          radiation: np.ndarray,
+                                          wind_speed: np.ndarray,
+                                          standard_panel_eff: float = 0.17,
+                                          temp_ref_c: float = 25.0,
+                                          eff_response_coef: float = -0.005,
+                                          thermal_coef1: float = 4.3,
+                                          thermal_coef2: float = 0.943,
+                                          thermal_coef3: float = 0.028,
+                                          thermal_coef4: float = -1.528) -> np.ndarray:
+
     """
-    Computes the Solar-to-Electric efficiency, which accounts for the PV cell efficiency of the conversion
-    of solar radiation into electricity under the operating climate conditions of the plant site.
+    Computes PV panel efficiency, adjusted for atmospheric conditions.
+
     Source: Gernaat et al. 2021; https://doi.org/10.1038/s41558-020-00949-9
-    inputs: Temp_K    - array of surface air temperature (K)
-            Rad     - array of surface-downwelling shortwave radiation (W/m^2)
-            Sfcwind - array of wind speeds at 10m height (m/s)
-    output: Solar-to-Electric efficiency (N_pv) - array of the same shape as the original input data (adimensional)
+
+    Variables:
+        :param temp_ambient_k:                  surface air temperature (K)
+        :type temp_ambient_k:                   numpy array
+
+        :param radiation:                       solar radiation (W/m^2)
+        :type radiation:                        numpy array
+
+        :param wind_speed:                      wind speeds (m/s) at 10m height
+        :type wind_speed:                       numpy array
+
+        :param standard_panel_eff:              PV panel efficiency under standard test condition, default 17%
+        :type standard_panel_eff                float
+
+        :param temp_ref_c:                      reference temperature (deg_C) at standard condition, default 25 deg_C
+        :type temp_ref_c:                       float
+
+        :param eff_response_coef:               efficiency response of PV panel to deviation of atmospheric condition,
+                                                default -0.005 (1/deg_C) is for monocrystalline silicon PV panels
+        :type eff_response_coef:                float
+
+        :param thermal_coef1:                   thermal coefficient (deg_C)
+        :type thermal_coef1:                    float
+
+        :param thermal_coef2:                   thermal coefficient (non-dimensional) for ambient temperature
+        :type thermal_coef2:                    float
+
+        :param thermal_coef3:                   thermal coefficient (deg_C * m^2 * W^-1) for solar radiation
+        :type thermal_coef3:                    float
+
+        :param thermal_coef4:                   thermal coefficient (deg_C * s * m^-1) for wind speed
+        :type thermal_coef4:                    float
+
+        :return pv_panel_eff_adj:               array of PV panel efficiency, adjusted for atmospheric conditions
+
     """
-    # Initializing key parameters
-    N_panel = 0.17  # i.e., 17%
-    T_stc = 25.0  # deg C
-    thermal_coef = -0.005  # (deg C)^-1
-    c1 = 4.3  # deg C
-    c2 = 0.943  # adimensional
-    c3 = 0.028  # deg C * m^2 * W^-1
-    c4 = -1.528  # deg C * s * m^-1
-    # Converting Temp from K to deg C
-    Temp_C = Temp_K - 273.15
-    # Computing the PV cell temperature
-    Tcell = c1 + c2 * Temp_C + c3 * Rad + c4 * Sfcwind
-    # Computing Solar-to-Electric efficiency (N_pv)
-    N_pv = N_panel * (1.0 + thermal_coef * (Tcell - T_stc))
-    #
-    return N_pv
+
+    # Convert ambient temperature from K to deg_C
+    temp_ambient_c = temp_ambient_k - 273.15
+
+    # Compute the PV panel temperature
+    temp_pv_panel_c = thermal_coef1 + thermal_coef2 * temp_ambient_c + thermal_coef3 * radiation + \
+                      thermal_coef4 * wind_speed
+
+    # Compute PV panel efficiency, adjusted for atmospheric conditions
+    pv_panel_eff_adj = standard_panel_eff * (1.0 + eff_response_coef * (temp_pv_panel_c - temp_ref_c))
+
+    return pv_panel_eff_adj
 
 
 def compute_FLH(rad):
@@ -306,12 +343,12 @@ def compute_FLH(rad):
     return FLH
 
 
-def compute_CSP_eff(Temp_K, Rad):
+def compute_CSP_eff(temp_k, rad):
     """
     Computes the thermal efficiency of a CSP system.
     Source: Gernaat et al. 2021; https://doi.org/10.1038/s41558-020-00949-9
-    inputs: Temp_K   - array of surface air temperature (K)
-            Rad     - array of surface-downwelling shortwave radiation (W/m^2)
+    inputs: temp_k   - array of surface air temperature (K)
+            rad     - array of surface-downwelling shortwave radiation (W/m^2)
     output: CSP efficiency (N_csp) - array of the same shape as the original input data (adimensional)
     """
     # Initializing key parameters
@@ -322,19 +359,19 @@ def compute_CSP_eff(Temp_K, Rad):
     k1 = 0.2125  # W m^−2 deg C^−1
     T_fluid = 115.0  # deg C
     # Converting Temp from K to deg C
-    Temp_C = Temp_K - 273.15
+    Temp_C = temp_k - 273.15
 
     # Initialize the array N_csp with 0s
-    N_csp = np.zeros_like(Rad)
+    N_csp = np.zeros_like(rad)
 
     # Avoid division by zero (ocean cells and a group of land cells at higher latitudes in the Winter
-    # have 0.0 values for the Rad array). Setting a cutoff value of 1.0 W/m2 does not affect the
+    # have 0.0 values for the rad array). Setting a cutoff value of 1.0 W/m2 does not affect the
     # estimate of solar CSP potential since this value is much lower than the minimum operational
     # requirement of 300 W/m2.
-    idx = np.where(Rad >= 1.0)
+    idx = np.where(rad >= 1.0)
 
     # Use indexes above (idx) to compute the CSP efficiency (N_csp)
-    N_csp[idx] = N_rank * (k0 - (k1 * (T_fluid - Temp_C[idx])) / Rad[idx])
+    N_csp[idx] = N_rank * (k0 - (k1 * (T_fluid - Temp_C[idx])) / rad[idx])
 
     # Filtering negative values that can occur at higher latitudes in the Winter
     N_csp = np.where(N_csp <= 0.0, 0.0, N_csp)
@@ -661,7 +698,7 @@ def calc_technical_potential_solar_PV(r_rsds, r_wind, r_tas, suit_sqkm_raster, y
     # PR    = 0.90              # Performance ratio                   - High case
 
     # camputes the daily N_pv array
-    N_pv_daily = compute_solar_to_electric_eff(r_tas, r_rsds, r_wind)
+    N_pv_daily = adjust_pv_panel_eff_for_atm_condition(r_tas, r_rsds, r_wind)
 
     # camputes the yearly mean N_pv array
     N_pv = np.mean(N_pv_daily, axis=0)
