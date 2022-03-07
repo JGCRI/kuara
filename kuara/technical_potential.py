@@ -323,34 +323,50 @@ def adjust_pv_panel_eff_for_atm_condition(temp_ambient_k: np.ndarray,
     return pv_panel_eff_adj
 
 
-def compute_FLH(rad):
+def compute_full_load_hours_for_csp(radiation: np.ndarray) -> np.ndarray:
+
     """
     Checks the minimum feasibility threshold level for CSP operation regarding solar
     radiation and computes the FLH (full load hours) as a function of the incident solar
     radiation for a CSP plant SM 2.  Minimum taken as 3000 Wh/m2/day (or an average of
     300 W/m2 over a 10-hour solar day). This translates into 1095 kWh/m2/year.
-    Sources: Koberle et al. 2015. http://dx.doi.org/10.1016/j.energy.2015.05.145
-             Gernaat et al. 2021; https://doi.org/10.1038/s41558-020-00949-9
-    input:   rad         - a numpy array with annual average surface solar radiation (KWh/m2/year)
-    outputs: FLH         - a numpy array (same dimemsion of the input array) with Full Load Hours (hours)
-    """
-    FLH = np.zeros_like(rad)
-    FLH = np.where(rad > 2800.0, 5260.0, FLH)
-    idx_FLH = np.where((rad >= 1095.0) * (rad <= 2800.0))
-    FLH[idx_FLH] = 1.83 * rad[idx_FLH] + 150.0
-    FLH = np.where(FLH > 5260.0, 5260.0, FLH)
 
-    return FLH
+    Sources: Koberle et al. 2015; http://dx.doi.org/10.1016/j.energy.2015.05.145
+             Gernaat et al. 2021; https://doi.org/10.1038/s41558-020-00949-9
+
+    Variables:
+        :param radiation:                       solar radiation (W/m^2)
+        :type radiation:                        numpy array
+
+        :return full_load_hours:                array of full load hours for CSP
+
+    """
+
+    full_load_hours = np.zeros_like(radiation)
+
+    full_load_hours = np.where(radiation > 2800.0, 5260.0, full_load_hours)
+
+    idx_full_load_hours = np.where((radiation >= 1095.0) * (radiation <= 2800.0))
+    full_load_hours[idx_full_load_hours] = 1.83 * radiation[idx_full_load_hours] + 150.0
+
+    full_load_hours = np.where(full_load_hours > 5260.0, 5260.0, full_load_hours)
+
+    return full_load_hours
 
 
 def compute_CSP_eff(temp_k, rad):
+
     """
     Computes the thermal efficiency of a CSP system.
+
     Source: Gernaat et al. 2021; https://doi.org/10.1038/s41558-020-00949-9
+
     inputs: temp_k   - array of surface air temperature (K)
             rad     - array of surface-downwelling shortwave radiation (W/m^2)
     output: CSP efficiency (N_csp) - array of the same shape as the original input data (adimensional)
+
     """
+
     # Initializing key parameters
     N_rank = 0.40  # i.e., 40%    # central assumptions
     # N_rank  = 0.37     # i.e., 37%    # Huixing et al 2020
@@ -358,6 +374,7 @@ def compute_CSP_eff(temp_k, rad):
     k0 = 0.762  # adimensional
     k1 = 0.2125  # W m^−2 deg C^−1
     T_fluid = 115.0  # deg C
+
     # Converting Temp from K to deg C
     Temp_C = temp_k - 273.15
 
@@ -748,7 +765,7 @@ def calc_technical_potential_solar_CSP(r_rsds, r_tas, suit_sqkm_raster, yr_hours
     np.save(solar_rad_raster, solar_rad_KWh)
 
     # computes FLH
-    FLH = compute_FLH(solar_rad_KWh)
+    FLH = compute_full_load_hours_for_csp(solar_rad_KWh)
 
     # print FLH for debug
     FLH_raster = os.path.join(output_directory, 'FLH_' + str(target_year) + '.npy')

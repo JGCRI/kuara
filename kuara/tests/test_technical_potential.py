@@ -62,7 +62,7 @@ class TestTechnicalPotential(unittest.TestCase):
 
         pass
 
-    def test_compute_FLH(self):
+    def test_full_load_hours_for_csp(self):
 
         pass
 
