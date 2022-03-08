@@ -19,7 +19,7 @@ def extrap_wind_speed_at_hub_height(wind_speed: np.ndarray,
     Sources: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
              Hsu et al., 1994,JAMC, https://doi.org/10.1175/1520-0450(1994)033<0757:DTPLWP>2.0.CO;2
 
-    Variables:
+    Parameters:
         :param wind_speed:                          wind speed (m/s) at ref. height
         :type wind_speed:                           numpy array
 
@@ -49,7 +49,7 @@ def dry_air_density_ideal(pressure: np.ndarray,
 
     Source: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
 
-    Variables:
+    Parameters:
         :param pressure:                        surface pressure (Pascal = J/m3)
         :type pressure:                         numpy array
 
@@ -75,7 +75,7 @@ def dry_air_density_humidity(dry_air_dens: np.ndarray,
 
     Source: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
 
-    Variables:
+    Parameters:
         :param dry_air_dens:                    dry air density (kg/m3)
         :type dry_air_dens:                     numpy array
 
@@ -100,7 +100,7 @@ def adjust_wind_speed_for_air_density(wind_speed: np.ndarray,
     Sources: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9;
              IEC61400-12-1 (2005)
 
-    Variables:
+    Parameters:
         :param wind_speed:                      wind speed (m/s)
         :type wind_speed:                       numpy array
 
@@ -124,7 +124,7 @@ def common_wind_power_curve(wind_speed_hub_ht_adj: np.ndarray,
 
     """Common function to compute wind power for most of the turbine types
 
-    Variables:
+    Parameters:
         :param wind_speed_hub_ht_adj:           wind speeds (m/s) at the turbine hub height, adjusted for air density
         :type wind_speed_hub_ht_adj:            numpy array
 
@@ -187,7 +187,7 @@ def compute_wind_power(wind_speed_hub_ht_adj: np.ndarray,
 
         IEC_classII_3500:   Eurek et al. 2017,  http://dx.doi.org/10.1016/j.eneco.2016.11.015
 
-    Variables:
+    Parameters:
         :param wind_speed_hub_ht_adj:           wind speeds (m/s) at the turbine hub height, adjusted for air density
         :type wind_speed_hub_ht_adj:            numpy array
 
@@ -274,7 +274,7 @@ def adjust_pv_panel_eff_for_atm_condition(temp_ambient_k: np.ndarray,
 
     Source: Gernaat et al. 2021; https://doi.org/10.1038/s41558-020-00949-9
 
-    Variables:
+    Parameters:
         :param temp_ambient_k:                  surface air temperature (K)
         :type temp_ambient_k:                   numpy array
 
@@ -334,7 +334,7 @@ def compute_full_load_hours_for_csp(radiation: np.ndarray) -> np.ndarray:
     Sources: Koberle et al. 2015; http://dx.doi.org/10.1016/j.energy.2015.05.145
              Gernaat et al. 2021; https://doi.org/10.1038/s41558-020-00949-9
 
-    Variables:
+    Parameters:
         :param radiation:                       solar radiation (W/m^2)
         :type radiation:                        numpy array
 
