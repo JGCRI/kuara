@@ -66,7 +66,7 @@ class TestTechnicalPotential(unittest.TestCase):
 
         pass
 
-    def test_compute_CSP_eff(self):
+    def test_compute_csp_eff(self):
 
         pass
 

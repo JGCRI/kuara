@@ -294,16 +294,16 @@ def adjust_pv_panel_eff_for_atm_condition(temp_ambient_k: np.ndarray,
                                                 default -0.005 (1/deg_C) is for monocrystalline silicon PV panels
         :type eff_response_coef:                float
 
-        :param thermal_coef1:                   thermal coefficient (deg_C)
+        :param thermal_coef1:                   thermal coefficient c1, default 4.3 (deg_C)
         :type thermal_coef1:                    float
 
-        :param thermal_coef2:                   thermal coefficient (non-dimensional) for ambient temperature
+        :param thermal_coef2:                   thermal coefficient c2, default 0.943 (non-dimensional)
         :type thermal_coef2:                    float
 
-        :param thermal_coef3:                   thermal coefficient (deg_C * m^2 * W^-1) for solar radiation
+        :param thermal_coef3:                   thermal coefficient c3, default 0.028 (deg_C * m^2 * W^-1)
         :type thermal_coef3:                    float
 
-        :param thermal_coef4:                   thermal coefficient (deg_C * s * m^-1) for wind speed
+        :param thermal_coef4:                   thermal coefficient c4, default -1.528 (deg_C * s * m^-1)
         :type thermal_coef4:                    float
 
         :return pv_panel_eff_adj:               array of PV panel efficiency, adjusted for atmospheric conditions
@@ -327,7 +327,7 @@ def compute_full_load_hours_for_csp(radiation: np.ndarray) -> np.ndarray:
 
     """
     Checks the minimum feasibility threshold level for CSP operation regarding solar
-    radiation and computes the FLH (full load hours) as a function of the incident solar
+    radiation and computes the full load hours (FLH) as a function of the incident solar
     radiation for a CSP plant SM 2.  Minimum taken as 3000 Wh/m2/day (or an average of
     300 W/m2 over a 10-hour solar day). This translates into 1095 kWh/m2/year.
 
@@ -354,46 +354,62 @@ def compute_full_load_hours_for_csp(radiation: np.ndarray) -> np.ndarray:
     return full_load_hours
 
 
-def compute_CSP_eff(temp_k, rad):
+def compute_csp_eff(temp_ambient_k: np.ndarray,
+                    radiation: np.ndarray,
+                    rankine_cycle_eff: float = 0.40,
+                    temp_absorber_fluid_c: float = 115.0,
+                    thermal_coef_k0: float = 0.762,
+                    thermal_coef_k1: float = 0.2125) -> np.ndarray:
 
     """
     Computes the thermal efficiency of a CSP system.
 
     Source: Gernaat et al. 2021; https://doi.org/10.1038/s41558-020-00949-9
 
-    inputs: temp_k   - array of surface air temperature (K)
-            rad     - array of surface-downwelling shortwave radiation (W/m^2)
-    output: CSP efficiency (N_csp) - array of the same shape as the original input data (adimensional)
+    Parameters:
+        :param temp_ambient_k:                  surface air temperature (K)
+        :type temp_ambient_k:                   numpy array
+
+        :param radiation:                       solar radiation (W/m^2)
+        :type radiation:                        numpy array
+
+        :param rankine_cycle_eff:               efficiency of Rankine cycle, default 40%
+        :type rankine_cycle_eff:                float
+
+        :param temp_absorber_fluid_c:           temperature of fluid in absorber, default 115 (deg_C)
+        :type temp_absorber_fluid_c:            float
+
+        :param thermal_coef_k0:                 thermal coefficient k0, default 0.762 (non-dimensional)
+        :type thermal_coef_k0:                  float
+
+        :param thermal_coef_k1:                 thermal coefficient k1, default 0.2125 (W m^−2 deg C^−1)
+        :type thermal_coef_k1:                  float
+
+        :return csp_efficiency:                 array of CSP efficiency
 
     """
 
-    # Initializing key parameters
-    N_rank = 0.40  # i.e., 40%    # central assumptions
-    # N_rank  = 0.37     # i.e., 37%    # Huixing et al 2020
-    # N_rank  = 0.42     # i.e., 42%    # Huixing et al 2020
-    k0 = 0.762  # adimensional
-    k1 = 0.2125  # W m^−2 deg C^−1
-    T_fluid = 115.0  # deg C
+    # Converting temp from K to deg_C
+    temp_ambient_c = temp_ambient_k - 273.15
 
-    # Converting Temp from K to deg C
-    Temp_C = temp_k - 273.15
-
-    # Initialize the array N_csp with 0s
-    N_csp = np.zeros_like(rad)
+    # Initialize the array of CSP efficiency with 0s
+    csp_efficiency = np.zeros_like(radiation)
 
     # Avoid division by zero (ocean cells and a group of land cells at higher latitudes in the Winter
     # have 0.0 values for the rad array). Setting a cutoff value of 1.0 W/m2 does not affect the
     # estimate of solar CSP potential since this value is much lower than the minimum operational
     # requirement of 300 W/m2.
-    idx = np.where(rad >= 1.0)
+    idx = np.where(radiation >= 1.0)
 
-    # Use indexes above (idx) to compute the CSP efficiency (N_csp)
-    N_csp[idx] = N_rank * (k0 - (k1 * (T_fluid - Temp_C[idx])) / rad[idx])
+    # Use indexes above (idx) to compute the CSP efficiency
+    csp_efficiency[idx] = rankine_cycle_eff * \
+                          (thermal_coef_k0 -
+                          (thermal_coef_k1 * (temp_absorber_fluid_c - temp_ambient_c[idx])) / radiation[idx])
 
     # Filtering negative values that can occur at higher latitudes in the Winter
-    N_csp = np.where(N_csp <= 0.0, 0.0, N_csp)
+    csp_efficiency = np.where(csp_efficiency <= 0.0, 0.0, csp_efficiency)
 
-    return N_csp
+    return csp_efficiency
 
 
 def read_climate_data(nc_file, variable, target_year, groupby_freq='Y', time_dim='time'):
@@ -772,7 +788,7 @@ def calc_technical_potential_solar_CSP(r_rsds, r_tas, suit_sqkm_raster, yr_hours
     np.save(FLH_raster, FLH)
 
     # computes the daily CSP_eff
-    N_csp_daily = compute_CSP_eff(r_tas, r_rsds)
+    N_csp_daily = compute_csp_eff(r_tas, r_rsds)
 
     # save N_csp_daily for debug
     # raster = os.path.join(output_directory, 'N_csp_daily_'+str(target_year)+'.npy')
