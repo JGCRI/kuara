@@ -12,8 +12,7 @@ import rasterio
 def extrap_wind_speed_at_hub_height(wind_speed: np.ndarray,
                                     hub_height_m: float = 100.0,
                                     ref_height_m: float = 10.0,
-                                    wind_power_law_exp: float = (1.0/7.0)) -> np.ndarray:
-
+                                    wind_power_law_exp: float = (1.0 / 7.0)) -> np.ndarray:
     """Extrapolates wind speed of a reference height to the turbine hub height by using a power law.
 
     Sources: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
@@ -44,7 +43,6 @@ def extrap_wind_speed_at_hub_height(wind_speed: np.ndarray,
 
 def dry_air_density_ideal(pressure: np.ndarray,
                           temperature: np.ndarray) -> np.ndarray:
-
     """Computes dry air density based on the ideal gas law.
 
     Source: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
@@ -70,7 +68,6 @@ def dry_air_density_ideal(pressure: np.ndarray,
 
 def dry_air_density_humidity(dry_air_dens: np.ndarray,
                              sp_humidity: np.ndarray) -> np.ndarray:
-
     """Corrects dry air density for humidity
 
     Source: Karnauskas et al. 2018, Nature Geoscience, https://doi.org/10.1038/s41561-017-0029-9
@@ -93,7 +90,6 @@ def dry_air_density_humidity(dry_air_dens: np.ndarray,
 
 def adjust_wind_speed_for_air_density(wind_speed: np.ndarray,
                                       dry_air_dens_hum: np.ndarray) -> np.ndarray:
-
     """Adjust wind speed to account for the differences in air density between rotor elevations
     and standard (sea level) condition.
 
@@ -121,7 +117,6 @@ def common_wind_power_curve(wind_speed_hub_ht_adj: np.ndarray,
                             power_to_fit: np.ndarray,
                             min_wind_speed: float = 2.0,
                             max_wind_speed: float = 25.0) -> np.ndarray:
-
     """Common function to compute wind power for most of the turbine types
 
     Parameters:
@@ -159,7 +154,6 @@ def common_wind_power_curve(wind_speed_hub_ht_adj: np.ndarray,
 
 def compute_wind_power(wind_speed_hub_ht_adj: np.ndarray,
                        wind_turbname: str) -> np.ndarray:
-
     """Compute wind power for a specified turbine type
 
     Sources of turbine specifications:
@@ -203,11 +197,11 @@ def compute_wind_power(wind_speed_hub_ht_adj: np.ndarray,
     df_wind_power_to_fit = pd.read_csv(wind_power_file, header=0)
 
     # Wind points of the wind power curve
-    wind_to_fit = np.array(df_wind_power_to_fit['wind_'+wind_turbname])
-    
+    wind_to_fit = np.array(df_wind_power_to_fit['wind_' + wind_turbname])
+
     # Wind power points of the wind power curve
-    power_to_fit = np.array(df_wind_power_to_fit['power_'+wind_turbname])
-    
+    power_to_fit = np.array(df_wind_power_to_fit['power_' + wind_turbname])
+
     # Exclude nan if any
     wind_to_fit = wind_to_fit[~np.isnan(wind_to_fit)]
     power_to_fit = power_to_fit[~np.isnan(power_to_fit)]
@@ -221,7 +215,6 @@ def compute_wind_power(wind_speed_hub_ht_adj: np.ndarray,
                         'IEC_classII_3500': (4.0, 25.0)
                         }
 
-
     if wind_turbname == 'GE1500':
 
         # Generate Sixth Order Fit Coef
@@ -234,7 +227,9 @@ def compute_wind_power(wind_speed_hub_ht_adj: np.ndarray,
         res = np.ma.where((wind_speed_hub_ht_adj < 13.5) * (wind_speed_hub_ht_adj > wind_speed_range[wind_turbname][0]))
         power_arr = lfit(wind_speed_hub_ht_adj[res])
 
-        power_arr = np.where((wind_speed_hub_ht_adj <= wind_speed_range[wind_turbname][1]) * (wind_speed_hub_ht_adj >= 13.5), 1500.0, power_arr)
+        power_arr = np.where(
+            (wind_speed_hub_ht_adj <= wind_speed_range[wind_turbname][1]) * (wind_speed_hub_ht_adj >= 13.5), 1500.0,
+            power_arr)
 
 
     elif wind_turbname == 'IEC_classII_3500':
@@ -245,7 +240,9 @@ def compute_wind_power(wind_speed_hub_ht_adj: np.ndarray,
                                             max_wind_speed=15.0)
 
         # Filling out the power_arr for wind speed in the 15.0 - 25.0 m/s range
-        power_arr = np.where((wind_speed_hub_ht_adj <= wind_speed_range[wind_turbname][1]) * (wind_speed_hub_ht_adj >= 15.0), 3500.0, power_arr)
+        power_arr = np.where(
+            (wind_speed_hub_ht_adj <= wind_speed_range[wind_turbname][1]) * (wind_speed_hub_ht_adj >= 15.0), 3500.0,
+            power_arr)
 
 
     else:
@@ -268,7 +265,6 @@ def adjust_pv_panel_eff_for_atm_condition(temp_ambient_k: np.ndarray,
                                           thermal_coef2: float = 0.943,
                                           thermal_coef3: float = 0.028,
                                           thermal_coef4: float = -1.528) -> np.ndarray:
-
     """
     Computes PV panel efficiency, adjusted for atmospheric conditions.
 
@@ -324,7 +320,6 @@ def adjust_pv_panel_eff_for_atm_condition(temp_ambient_k: np.ndarray,
 
 
 def compute_full_load_hours_for_csp(radiation: np.ndarray) -> np.ndarray:
-
     """
     Checks the minimum feasibility threshold level for CSP operation regarding solar
     radiation and computes the full load hours (FLH) as a function of the incident solar
@@ -360,7 +355,6 @@ def compute_csp_eff(temp_ambient_k: np.ndarray,
                     temp_absorber_fluid_c: float = 115.0,
                     thermal_coef_k0: float = 0.762,
                     thermal_coef_k1: float = 0.2125) -> np.ndarray:
-
     """
     Computes the thermal efficiency of a CSP system.
 
@@ -404,7 +398,7 @@ def compute_csp_eff(temp_ambient_k: np.ndarray,
     # Use indexes above (idx) to compute the CSP efficiency
     csp_efficiency[idx] = rankine_cycle_eff * \
                           (thermal_coef_k0 -
-                          (thermal_coef_k1 * (temp_absorber_fluid_c - temp_ambient_c[idx])) / radiation[idx])
+                           (thermal_coef_k1 * (temp_absorber_fluid_c - temp_ambient_c[idx])) / radiation[idx])
 
     # Filtering negative values that can occur at higher latitudes in the Winter
     csp_efficiency = np.where(csp_efficiency <= 0.0, 0.0, csp_efficiency)
@@ -412,242 +406,368 @@ def compute_csp_eff(temp_ambient_k: np.ndarray,
     return csp_efficiency
 
 
-def read_climate_data(nc_file, variable, target_year, groupby_freq='Y', time_dim='time'):
-    """Read in NetCDF file and get the mean of the desired time period as an array.
+def read_climate_data(nc_file: str,
+                      clim_varname: str,
+                      target_year: int) -> np.ndarray:
+    """Read in NetCDF file and get the daily data of desired climate variable for a target year as an array.
 
-    :param nc_file:  Full path with file name and extension to the input NetCDF file
-    :type nc_file: str
+    Parameters:
+        :param nc_file:             full path with file name and extension to the input NetCDF file
+        :type nc_file:              str
 
-    :param variable:  Name of the target variable in the NetCDF file
-    :type variable: str
+        :param clim_varname:        name of the target climate variable in the NetCDF file
+        :type clim_varname:         str
 
-    :param target_year: Target year to process in YYYY format.
-    :type target_year:  int; str
+        :param target_year:         target year to process in YYYY format
+        :type target_year:          int; str
 
-    :param groupby_freq:  The datetime part to group by for output statistics.
-                        Default:  'Y' for year.
-    :type groupby_freq:  str
-
-    :param time_dim: Time dimension name in the NetCDF file.
-    :type time_dim: str
-
-    :return:   A n-dimensional array where values for [time, lat, lon].  If only one time then a
-                2D array of values for [lat, lon] will be returned.
-
+        :return:                    A n-dimensional array where values for [time, lat, lon].  If only one time then a
+                                    2D array of values for [lat, lon] will be returned.
 
     """
+
+    # read target_year
     yr = str(target_year)
 
     # read in NetCDF file
-    ds = xr.open_dataset(nc_file)
+    clim_data_raw = xr.open_dataset(nc_file)
 
     # get desired time slice from data
-    dsx = ds.sel(time=slice(yr, yr))
+    clim_data_sliced = clim_data_raw.sel(time=slice(yr, yr))
 
     # extract daily data for target_year
-    arr = dsx.variables[variable][:, :, :].values
+    arr_daily_clim_data = clim_data_sliced.variables[clim_varname][:, :, :].values
 
-    return arr
-
-
-def process_climate_solar(nc_rsds, target_year, output_directory, rsds_var='rsdsAdjust'):
-    """Process each required climate NetCDF file."""
-
-    arr_rsds = read_climate_data(nc_rsds, rsds_var, target_year)
-    # Handling NaN values: NaN values correspond to ocean cells with no values.
-    # This treatment does not affect results of land wind potential but avoids
-    # "RuntimeWarning" when arithmetic operations are attempted with NaN values.
-    idx_nan = np.isnan(arr_rsds)
-    arr_rsds[idx_nan] = 0.0
-
-    # saving climate variables to .npy
-    # daily to yearly mean
-    arr_rsds_mean = np.mean(arr_rsds, axis=0)
-    arr_rsds_raster = os.path.join(output_directory, 'solar_radiation_W_m2_' + str(target_year) + '.npy')
-    np.save(arr_rsds_raster, arr_rsds_mean)
-
-    return arr_rsds
+    return arr_daily_clim_data
 
 
-def process_climate(nc_wind, nc_tas, nc_ps, nc_huss, target_year, output_directory,
-                    wind_var='sfcWind', tas_var='tas', ps_var='ps',
-                    huss_var='huss'):
-    """Process each required climate NetCDF file."""
+def process_climate_data(radiation_nc_file: str,
+                         wind_nc_file: str,
+                         tas_nc_file: str,
+                         ps_nc_file: str,
+                         huss_nc_file: str,
+                         target_year: int,
+                         output_directory: str,
+                         radiation_varname: str = 'rsdsAdjust',
+                         wind_varname: str = 'sfcWind',
+                         tas_varname: str = 'tas',
+                         ps_varname: str = 'ps',
+                         huss_varname: str = 'huss') -> [np.ndarray,
+                                                         np.ndarray,
+                                                         np.ndarray,
+                                                         np.ndarray,
+                                                         np.ndarray]:
 
-    # print('### process wind ###')
-    arr_wind = read_climate_data(nc_wind, wind_var, target_year)
-    # Handling NaN values: NaN values correspond to ocean cells with no values.
-    # This treatment does not affect results of land wind potential but avoids
-    # "RuntimeWarning" when arithmetic operations are attempted with NaN values.
-    idx_nan = np.isnan(arr_wind)
-    arr_wind[idx_nan] = 0.0
+    """ Process each required climate data NetCDF file.
 
-    # print('### process tas ###')
-    arr_tas = read_climate_data(nc_tas, tas_var, target_year)
-    arr_tas[idx_nan] = -999.0  # cannot be 0.0, otherwise "RuntimeWarning" is raised
+    Parameters:
+        :param *_nc_file:                   full path with file name and extension to the input NetCDF file
+        :type *_nc_file:                    str
 
-    # print('### process ps ###')
-    arr_ps = read_climate_data(nc_ps, ps_var, target_year)
-    arr_ps[idx_nan] = 0.0
+        :param *_varname:                   name of the target climate variable in the NetCDF file
+        :type *_varname:                    str
 
-    # print('### process huss ###')
-    arr_huss = read_climate_data(nc_huss, huss_var, target_year)
-    arr_huss[idx_nan] = 0.0
+        :param target_year:                 target year to process in YYYY format
+        :type target_year:                  int; str
 
-    # saving climate variables to .npy
-    # daily to yearly mean
+        :param output_directory:            full path to output directory
+        :type output_directory:             str
+
+        :return:                            n-dimensional arrays where values for [time, lat, lon].
+                                            If only one time then a 2D array of values for [lat, lon] will be returned.
+
+    """
+
+    # read daily climate data for target year from nc files
+    arr_radiation = read_climate_data(radiation_nc_file, radiation_varname, target_year)
+    arr_wind = read_climate_data(wind_nc_file, wind_varname, target_year)
+    arr_tas = read_climate_data(tas_nc_file, tas_varname, target_year)
+    arr_ps = read_climate_data(ps_nc_file, ps_varname, target_year)
+    arr_huss = read_climate_data(huss_nc_file, huss_varname, target_year)
+
+    # Replace NaN values correspond to ocean cells to avoid "RuntimeWarning"
+    arr_radiation[np.isnan(arr_radiation)] = 0.0
+    arr_wind[np.isnan(arr_wind)] = 0.0
+    arr_tas[np.isnan(arr_tas)] = -999.0  # non-zero to avoid "RuntimeWarning"
+    arr_ps[np.isnan(arr_ps)] = 0.0
+    arr_huss[np.isnan(arr_huss)] = 0.0
+
+    # calculate daily to yearly mean for radiation, wind, and tas
+    arr_radiation_mean = np.mean(arr_radiation, axis=0)
     arr_wind_mean = np.mean(arr_wind, axis=0)
+    arr_tas_mean = np.mean(arr_tas, axis=0)
+
+    # save the daily mean of radiation, wind, and tas as .npy
+    arr_radiation_raster = os.path.join(output_directory, 'solar_radiation_w_m2_' + str(target_year) + '.npy')
+    np.save(arr_radiation_raster, arr_radiation_mean)
+
     arr_wind_raster = os.path.join(output_directory, 'wind_speed_ms_' + str(target_year) + '.npy')
     np.save(arr_wind_raster, arr_wind_mean)
 
-    # daily to yearly mean
-    arr_tas_mean = np.mean(arr_tas, axis=0)
-    arr_tas_raster = os.path.join(output_directory, 'tas_degK_' + str(target_year) + '.npy')
+    arr_tas_raster = os.path.join(output_directory, 'tas_deg_k_' + str(target_year) + '.npy')
     np.save(arr_tas_raster, arr_tas_mean)
 
-    return arr_wind, arr_tas, arr_ps, arr_huss
+    return arr_radiation, arr_wind, arr_tas, arr_ps, arr_huss
 
 
-def process_elevation(r_file):
-    r = rasterio.open(r_file)
+def process_elevation(elev_raster_file: str) -> np.ndarray:
 
-    return np.where(r.read(1) > 2500, 0, 1)
+    """ Process elevation raster files.
 
+    Parameters:
+        :param elev_raster_file:            full path with file name and extension to the input raster file
+        :type elev_raster_file:             str
 
-def process_slope(r_file):
-    r = rasterio.open(r_file)
-
-    return np.where(r.read(1) > 20, 0, 1)
-
-
-def process_protected(r_file):
-    r = rasterio.open(r_file)
-
-    return np.where(r.read(1) < 0.0, 1, 0)
-
-
-def process_permafrost(r_file):
-    r = rasterio.open(r_file)
-
-    return np.where(r.read(1) >= 0.1, 0, 1)
-
-
-def process_lulc(r_file):
-    # central assumptions - based on Eurek et al. 2017
-
-    r = rasterio.open(r_file)
-
-    arr = r.read(1).astype(np.float64)
-
-    arr = np.where(arr == 11, 0, arr)
-    arr = np.where(arr == 14, 0.7, arr)
-    arr = np.where(arr == 20, 0.7, arr)
-    arr = np.where(arr == 30, 0.7, arr)
-    arr = np.where(arr == 40, 0.1, arr)
-    arr = np.where(arr == 50, 0.1, arr)
-    arr = np.where(arr == 60, 0.1, arr)
-    arr = np.where(arr == 70, 0.1, arr)
-    arr = np.where(arr == 90, 0.1, arr)
-    arr = np.where(arr == 100, 0.1, arr)
-    arr = np.where(arr == 110, 0.5, arr)
-    arr = np.where(arr == 120, 0.65, arr)
-    arr = np.where(arr == 130, 0.5, arr)
-    arr = np.where(arr == 140, 0.8, arr)
-    arr = np.where(arr == 150, 0.9, arr)
-    arr = np.where(arr == 160, 0, arr)
-    arr = np.where(arr == 170, 0, arr)
-    arr = np.where(arr == 180, 0, arr)
-    arr = np.where(arr == 190, 0, arr)
-    arr = np.where(arr == 200, 0.9, arr)
-    arr = np.where(arr == 210, 0, arr)
-    arr = np.where(arr == 220, 0, arr)
-    arr = np.where(arr == 230, 0, arr)
-
-    return arr
-
-
-def process_elevation_solar(r_file):
-    # Following Deng et al. 2015 (no constraint for altitude for solar)
-
-    r = rasterio.open(r_file)
-
-    return np.where(r.read(1) > 2500, 1, 1)
-
-
-def process_slope_solar_PV(r_file):
-    # Following Deng et al. 2015
-
-    r = rasterio.open(r_file)
-
-    return np.where(r.read(1) > 27, 0, 1)
-
-
-def process_slope_solar_CSP(r_file):
-    # Following Deng et al. 2015
-
-    r = rasterio.open(r_file)
-
-    return np.where(r.read(1) > 4, 0, 1)
-
-
-def process_permafrost_solar(r_file):
-    r = rasterio.open(r_file)
-
-    return np.where(r.read(1) >= 0.1, 1, 1)
-
-
-def process_lulc_solar(r_file):
-    # Central assumptions - Suitability factors based on Gernaat et al. 2021 and Korfiati et al. 2016
-
-    r = rasterio.open(r_file)
-
-    arr = r.read(1).astype(np.float64)
-
-    arr = np.where(arr == 11, 0.0, arr)
-    arr = np.where(arr == 14, 0.01, arr)
-    arr = np.where(arr == 20, 0.01, arr)
-    arr = np.where(arr == 30, 0.01, arr)
-    arr = np.where(arr == 40, 0.0, arr)
-    arr = np.where(arr == 50, 0.0, arr)
-    arr = np.where(arr == 60, 0.0, arr)
-    arr = np.where(arr == 70, 0.0, arr)
-    arr = np.where(arr == 90, 0.0, arr)
-    arr = np.where(arr == 100, 0.0, arr)
-    arr = np.where(arr == 110, 0.01, arr)
-    arr = np.where(arr == 120, 0.01, arr)
-    arr = np.where(arr == 130, 0.01, arr)
-    arr = np.where(arr == 140, 0.01, arr)
-    arr = np.where(arr == 150, 0.01, arr)
-    arr = np.where(arr == 160, 0.0, arr)
-    arr = np.where(arr == 170, 0.0, arr)
-    arr = np.where(arr == 180, 0.0, arr)
-    arr = np.where(arr == 190, 0.0, arr)
-    arr = np.where(arr == 200, 0.05, arr)
-    arr = np.where(arr == 210, 0.0, arr)
-    arr = np.where(arr == 220, 0.0, arr)
-    arr = np.where(arr == 230, 0.0, arr)
-
-    return arr
-
-
-def calc_final_suitability(elev_array, slope_array, prot_array, perm_array, lulc_array):
-    """Calculate the suitability factor per gridcell where 0 is unsuitable and 1 is most suitable.
+        :return:                            array of elevation data
 
     """
-    arr = elev_array * slope_array * prot_array * perm_array * lulc_array
 
-    return arr
+    ras_elev = rasterio.open(elev_raster_file)
+
+    arr_elev = np.where(ras_elev.read(1) > 2500, 0, 1)
+
+    return arr_elev
 
 
-def get_hours_per_year(target_year) -> int:
+def process_elevation_solar(elev_raster_file: str) -> np.ndarray:
+
+    """ Process elevation raster files for solar with no altitude constraint.
+
+    Source: Deng et al. 2015
+
+    Parameters:
+        :param elev_raster_file:            full path with file name and extension to the input raster file
+        :type elev_raster_file:             str
+
+        :return:                            array of elevation data
+
+    """
+
+    ras_elev = rasterio.open(elev_raster_file)
+
+    arr_elev_solar = np.where(ras_elev.read(1) > 2500, 1, 1)
+
+    return arr_elev_solar
+
+
+def process_slope(slope_raster_file: str) -> np.ndarray:
+
+    """ Process slope raster files.
+
+    Parameters:
+        :param slope_raster_file:           full path with file name and extension to the input raster file
+        :type slope_raster_file:            str
+
+        :return:                            array of slope data
+
+    """
+
+    ras_slope = rasterio.open(slope_raster_file)
+
+    arr_slope = np.where(ras_slope.read(1) > 20, 0, 1)
+
+    return arr_slope
+
+
+def process_slope_solar_pv(slope_raster_file: str) -> np.ndarray:
+
+    """ Process slope raster files for solar PV.
+
+    Source: Deng et al. 2015
+
+    Parameters:
+        :param slope_raster_file:           full path with file name and extension to the input raster file
+        :type slope_raster_file:            str
+
+        :return:                            array of slope data
+
+    """
+
+    ras_slope = rasterio.open(slope_raster_file)
+
+    arr_slope_solar_pv = np.where(ras_slope.read(1) > 27, 0, 1)
+
+    return arr_slope_solar_pv
+
+
+def process_slope_solar_csp(slope_raster_file: str) -> np.ndarray:
+    """ Process slope raster files for solar CSP.
+
+    Source: Deng et al. 2015
+
+    Parameters:
+        :param slope_raster_file:           full path with file name and extension to the input raster file
+        :type slope_raster_file:            str
+
+        :return:                            array of slope data
+
+    """
+
+    ras_slope = rasterio.open(slope_raster_file)
+
+    arr_slope_solar_csp = np.where(ras_slope.read(1) > 4, 0, 1)
+
+    return arr_slope_solar_csp
+
+
+def process_protected_areas(protected_areas_raster_file: str) -> np.ndarray:
+
+    """ Process raster files for protected areas.
+
+    Parameters:
+        :param protected_areas_raster_file:         full path with file name and extension to the input raster file
+        :type protected_areas_raster_file:          str
+
+        :return:                                    array of protected areas data
+
+    """
+
+    ras_protected_areas = rasterio.open(protected_areas_raster_file)
+
+    arr_protected_areas = np.where(ras_protected_areas.read(1) < 0.0, 1, 0)
+
+    return arr_protected_areas
+
+
+def process_permafrost(permafrost_raster_file: str) -> np.ndarray:
+
+    """ Process permafrost raster files.
+
+    Parameters:
+        :param permafrost_raster_file:          full path with file name and extension to the input raster file
+        :type permafrost_raster_file:           str
+
+        :return:                                array of permafrost data
+
+    """
+
+    ras_permafrost = rasterio.open(permafrost_raster_file)
+
+    arr_permafrost = np.where(ras_permafrost.read(1) >= 0.1, 0, 1)
+
+    return arr_permafrost
+
+
+def process_permafrost_solar(permafrost_raster_file: str) -> np.ndarray:
+
+    """ Process permafrost raster files for solar.
+
+    Parameters:
+        :param permafrost_raster_file:          full path with file name and extension to the input raster file
+        :type permafrost_raster_file:           str
+
+        :return:                                array of permafrost data
+
+    """
+
+    ras_permafrost = rasterio.open(permafrost_raster_file)
+
+    arr_permafrost_solar = np.where(ras_permafrost.read(1) >= 0.1, 1, 1)
+
+    return arr_permafrost_solar
+
+
+def process_lulc(lulc_raster_file: str) -> np.ndarray:
+
+    """ Process land use land cover (lulc) raster files.
+
+    Source: Eurek et al. 2017
+
+    Parameters:
+        :param lulc_raster_file:                full path with file name and extension to the input raster file
+        :type lulc_raster_file:                 str
+
+        :return:                                array of lulc data
+
+    """
+
+    ras_lulc = rasterio.open(lulc_raster_file)
+
+    arr_lulc = ras_lulc.read(1).astype(np.float64)
+
+    # replace some existing lulc data points
+    exist = [11, 14, 20, 30, 40, 50, 60, 70, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230]
+    replace = [0, 0.7, 0.7, 0.7, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.5, 0.65, 0.5, 0.8, 0.9, 0, 0, 0, 0, 0.9, 0, 0, 0]
+
+    for i in range(len(exist)):
+        arr_lulc = np.where(arr_lulc == exist[i], replace[i], arr_lulc)
+
+    return arr_lulc
+
+
+def process_lulc_solar(lulc_raster_file: str) -> np.ndarray:
+
+    """ Process land use land cover (lulc) raster files.
+
+    Source: Suitability factors based on Gernaat et al. 2021 and Korfiati et al. 2016
+
+    Parameters:
+        :param lulc_raster_file:                full path with file name and extension to the input raster file
+        :type lulc_raster_file:                 str
+
+        :return:                                array of lulc data
+
+    """
+
+    ras_lulc = rasterio.open(lulc_raster_file)
+
+    arr_lulc_solar = ras_lulc.read(1).astype(np.float64)
+
+    # replace some existing lulc data points
+    exist = [11, 14, 20, 30, 40, 50, 60, 70, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230]
+    replace = [0, 0.01, 0.01, 0.01, 0, 0, 0, 0, 0, 0, 0.01, 0.01, 0.01, 0.01, 0.01, 0, 0, 0, 0, 0.05, 0, 0, 0]
+
+    for i in range(len(exist)):
+        arr_lulc_solar = np.where(arr_lulc_solar == exist[i], replace[i], arr_lulc_solar)
+
+    return arr_lulc_solar
+
+
+def calc_final_suitability(elev_array: np.ndarray,
+                           slope_array: np.ndarray,
+                           prot_array: np.ndarray,
+                           perm_array: np.ndarray,
+                           lulc_array: np.ndarray) -> np.ndarray:
+
+    """Calculate the suitability factor per grid-cell where 0 is unsuitable and 1 is the most suitable.
+
+    Parameters:
+        :param elev_array:                array of elevation
+        :type elev_array:                 numpy array
+
+        :param slope_array:               array of slope
+        :type slope_array:                numpy array
+
+        :param prot_array:                array of protected areas
+        :type prot_array:                 numpy array
+
+        :param perm_array:                array of permafrost
+        :type perm_array:                 numpy array
+
+        :param lulc_array:                array of land use land cover (lulc)
+        :type lulc_array:                 numpy array
+
+        :return:                          array of suitability factors per grid-cell
+
+    """
+
+    arr_suitability_factor = elev_array * slope_array * prot_array * perm_array * lulc_array
+
+    return arr_suitability_factor
+
+
+def get_hours_per_year(target_year: int) -> int:
+
     """Get the hours per week for leap and non-leap years based on the target year.
 
-    :param target_year:                             Four digit year in YYYY format
-    :type target_year:                              int
+    Parameters:
+        :param target_year:                             Four digit year in YYYY format
+        :type target_year:                              int
 
-    :return:                                        Number of hours in a year
+        :return:                                        Number of hours in a year
 
     """
+
     leap_hours = 8784
     year_hours = 8760
 
@@ -664,8 +784,8 @@ def calc_total_suitable_area_solar_PV(elev_raster, slope_raster, prot_raster, pe
                                       gridcellarea_raster):
     # create exclusion rasters for each exclusion category
     elev = process_elevation_solar(elev_raster)
-    slope = process_slope_solar_PV(slope_raster)
-    prot = process_protected(prot_raster)
+    slope = process_slope_solar_pv(slope_raster)
+    prot = process_protected_areas(prot_raster)
     perm = process_permafrost_solar(perm_raster)
     lulc = process_lulc_solar(lulc_raster)
     gridcellarea = np.load(gridcellarea_raster)
@@ -693,8 +813,8 @@ def calc_total_suitable_area_solar_CSP(elev_raster, slope_raster, prot_raster, p
                                        gridcellarea_raster):
     # create exclusion rasters for each exclusion category
     elev = process_elevation_solar(elev_raster)
-    slope = process_slope_solar_CSP(slope_raster)
-    prot = process_protected(prot_raster)
+    slope = process_slope_solar_csp(slope_raster)
+    prot = process_protected_areas(prot_raster)
     perm = process_permafrost_solar(perm_raster)
     lulc = process_lulc_solar(lulc_raster)
     gridcellarea = np.load(gridcellarea_raster)

@@ -74,11 +74,7 @@ class TestTechnicalPotential(unittest.TestCase):
 
         pass
 
-    def test_process_climate_solar(self):
-
-        pass
-
-    def test_process_climate(self):
+    def test_process_climate_data(self):
 
         pass
 
@@ -90,7 +86,7 @@ class TestTechnicalPotential(unittest.TestCase):
 
         pass
 
-    def test_process_protected(self):
+    def test_process_protected_areas(self):
 
         pass
 
@@ -106,11 +102,11 @@ class TestTechnicalPotential(unittest.TestCase):
 
         pass
 
-    def test_process_slope_solar_PV(self):
+    def test_process_slope_solar_pv(self):
 
         pass
 
-    def test_process_slope_solar_CSP(self):
+    def test_process_slope_solar_csp(self):
 
         pass
 
