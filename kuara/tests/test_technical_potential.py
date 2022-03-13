@@ -134,19 +134,19 @@ class TestTechnicalPotential(unittest.TestCase):
 
         pass
 
-    def test_calc_total_suitable_area_solar_PV(self):
+    def test_calc_total_suitable_area_solar_pv(self):
 
         pass
 
-    def test_calc_total_suitable_area_solar_CSP(self):
+    def test_calc_total_suitable_area_solar_csp(self):
 
         pass
 
-    def test_calc_technical_potential_solar_PV(self):
+    def test_calc_technical_potential_solar_pv(self):
 
         pass
 
-    def test_calc_technical_potential_solar_CSP(self):
+    def test_calc_technical_potential_solar_csp(self):
 
         pass
 
