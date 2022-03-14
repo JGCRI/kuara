@@ -150,7 +150,7 @@ class TestTechnicalPotential(unittest.TestCase):
 
         pass
 
-    def test_calc_technical_potential(self):
+    def test_calc_technical_potential_wind(self):
 
         pass
 
