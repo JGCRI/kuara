@@ -43,7 +43,7 @@ def extrap_wind_speed_at_hub_height(wind_speed: np.ndarray,
 
 
 def dry_air_density_ideal(pressure: np.ndarray,
-                          temperature: np.ndarray) -> np.ndarray:
+                          temp_k: np.ndarray) -> np.ndarray:
 
     """
     Computes dry air density based on the ideal gas law.
@@ -54,8 +54,8 @@ def dry_air_density_ideal(pressure: np.ndarray,
         :param pressure:                        surface pressure (Pascal = J/m3)
         :type pressure:                         numpy array
 
-        :param temperature:                     surface temperature (K)
-        :type temperature:                      numpy array
+        :param temp_k:                          surface temperature (K)
+        :type temp_k:                           numpy array
 
         :return dry_air_dens:                   array of dry air density (kg/m3)
     """
@@ -63,7 +63,7 @@ def dry_air_density_ideal(pressure: np.ndarray,
     # specific gas constant of air (J / Kg * K)
     sp_gas_constant = 287.058
 
-    dry_air_dens = pressure / (sp_gas_constant * temperature)
+    dry_air_dens = pressure / (sp_gas_constant * temp_k)
 
     return dry_air_dens
 
@@ -125,7 +125,7 @@ def common_wind_power_curve(wind_speed_hub_ht_adj: np.ndarray,
     Common function to compute wind power for most of the turbine types
 
     Parameters:
-        :param wind_speed_hub_ht_adj:           wind speeds (m/s) at the turbine hub height, adjusted for air density
+        :param wind_speed_hub_ht_adj:           wind speed (m/s) at the turbine hub height, adjusted for air density
         :type wind_speed_hub_ht_adj:            numpy array
 
         :param wind_to_fit:                     turbine-specific wind speed (m/s) data points to fit power curve
@@ -157,7 +157,7 @@ def common_wind_power_curve(wind_speed_hub_ht_adj: np.ndarray,
 
 
 def compute_wind_power(wind_speed_hub_ht_adj: np.ndarray,
-                       wind_turbname: str) -> np.ndarray:
+                       wind_turbname: str = 'vestas_v90_2000') -> np.ndarray:
 
     """
     Compute wind power for a specified turbine type
@@ -188,10 +188,10 @@ def compute_wind_power(wind_speed_hub_ht_adj: np.ndarray,
         IEC_classII_3500:   Eurek et al. 2017,  http://dx.doi.org/10.1016/j.eneco.2016.11.015
 
     Parameters:
-        :param wind_speed_hub_ht_adj:           wind speeds (m/s) at the turbine hub height, adjusted for air density
+        :param wind_speed_hub_ht_adj:           wind speed (m/s) at the turbine hub height, adjusted for air density
         :type wind_speed_hub_ht_adj:            numpy array
 
-        :param wind_turbname:                   wind turbine name
+        :param wind_turbname:                   wind turbine name, default 'vestas_v90_2000' as representative turbine
         :type wind_turbname:                    str
 
         :return power_arr:                      array of wind power (kW) for specified turbine type
@@ -283,7 +283,7 @@ def adjust_pv_panel_eff_for_atm_condition(temp_ambient_k: np.ndarray,
         :param radiation:                       solar radiation (W/m^2)
         :type radiation:                        numpy array
 
-        :param wind_speed:                      wind speeds (m/s) at 10m height
+        :param wind_speed:                      wind speed (m/s) at 10m height
         :type wind_speed:                       numpy array
 
         :param standard_panel_eff:              PV panel efficiency under standard test condition, default 17%
@@ -724,39 +724,6 @@ def process_lulc_solar(lulc_raster_file: str) -> np.ndarray:
     return arr_lulc_solar
 
 
-def calc_final_suitability(elev_array: np.ndarray,
-                           slope_array: np.ndarray,
-                           prot_array: np.ndarray,
-                           perm_array: np.ndarray,
-                           lulc_array: np.ndarray) -> np.ndarray:
-
-    """
-    Calculate the suitability factor per grid-cell where 0 is unsuitable and 1 is the most suitable.
-
-    Parameters:
-        :param elev_array:                array of elevation
-        :type elev_array:                 numpy array
-
-        :param slope_array:               array of slope
-        :type slope_array:                numpy array
-
-        :param prot_array:                array of protected areas
-        :type prot_array:                 numpy array
-
-        :param perm_array:                array of permafrost
-        :type perm_array:                 numpy array
-
-        :param lulc_array:                array of land use land cover (lulc)
-        :type lulc_array:                 numpy array
-
-        :return:                          array of suitability factor
-    """
-
-    arr_suitability_factor = elev_array * slope_array * prot_array * perm_array * lulc_array
-
-    return arr_suitability_factor
-
-
 def get_hours_per_year(target_year: int) -> int:
 
     """
@@ -794,7 +761,7 @@ def calc_total_suitable_area_solar_pv(elev_raster: str,
         :param *_raster:                    full path with file name and extension to the input raster file
         :type *_raster:                     str
 
-        :return:                            array of suitable area (sqkm) for solar PV
+        :return:                            array of suitable area (sqkm) per grid-cell for solar PV
     """
 
     # apply exclusion criteria for elevation, slope, protected area, permafrost, and lulc
@@ -811,7 +778,7 @@ def calc_total_suitable_area_solar_pv(elev_raster: str,
     grid_cell_area = np.where(grid_cell_area > 0.0, grid_cell_area, 0.0)
 
     # calculate suitability factor for solar PV
-    suitability_factor_pv = calc_final_suitability(elev, slope, prot_area, permafrost, lulc)
+    suitability_factor_pv = elev * slope * prot_area * permafrost * lulc
 
     # calculate the suitable area in sqkm per grid_cell (fi * ai)
     suitable_pv_area_sqkm = suitability_factor_pv * grid_cell_area[::-1, :]
@@ -833,7 +800,7 @@ def calc_total_suitable_area_solar_csp(elev_raster: str,
         :param *_raster:                    full path with file name and extension to the input raster file
         :type *_raster:                     str
 
-        :return:                            array of suitable area (sqkm) for solar CSP
+        :return:                            array of suitable area (sqkm) per grid-cell for solar CSP
     """
 
     # apply exclusion criteria for elevation, slope, protected area, permafrost, and lulc
@@ -850,7 +817,7 @@ def calc_total_suitable_area_solar_csp(elev_raster: str,
     grid_cell_area = np.where(grid_cell_area > 0.0, grid_cell_area, 0.0)
 
     # calculate suitability factor for solar CSP
-    suitability_factor_csp = calc_final_suitability(elev, slope, prot_area, permafrost, lulc)
+    suitability_factor_csp = elev * slope * prot_area * permafrost * lulc
 
     # calculate the suitable area in sqkm per grid_cell (fi * ai)
     suitable_csp_area_sqkm = suitability_factor_csp * grid_cell_area[::-1, :]
@@ -872,7 +839,7 @@ def calc_total_suitable_area_wind(elev_raster: str,
         :param *_raster:                    full path with file name and extension to the input raster file
         :type *_raster:                     str
 
-        :return:                            array of suitable area (sqkm) for wind
+        :return:                            array of suitable area (sqkm) per grid-cell for wind
     """
 
     # apply exclusion criteria for elevation, slope, protected area, permafrost, and lulc
@@ -889,7 +856,7 @@ def calc_total_suitable_area_wind(elev_raster: str,
     grid_cell_area = np.where(grid_cell_area > 0.0, grid_cell_area, 0.0)
 
     # calculate suitability factor for solar PV
-    suitability_factor_wind = calc_final_suitability(elev, slope, prot_area, permafrost, lulc)
+    suitability_factor_wind = elev * slope * prot_area * permafrost * lulc
 
     # calculate the suitable area in sqkm per grid_cell (fi * ai)
     suitable_wind_area_sqkm = suitability_factor_wind * grid_cell_area[::-1, :]
@@ -912,16 +879,34 @@ def calc_technical_potential_solar_pv(elev_raster: str,
                                       performance_ratio: float = 0.85) -> np.ndarray:
 
     """
-    Computes technical potential of solar CSP in kWh/year.
+    Computes technical potential of solar PV in kWh/year.
 
     Parameters:
         :param *_raster:                    full path with file name and extension to the input raster file
         :type *_raster:                     str
 
+        :param temp_ambient_k:              surface air temperature (K)
+        :type temp_ambient_k:               numpy array
+
+        :param radiation:                   solar radiation (W/m^2)
+        :type radiation:                    numpy array
+
+        :param wind_speed:                  wind speeds (m/s) at 10m height
+        :type wind_speed:                   numpy array
+
+        :param target_year:                 target year in YYYY format
+        :type target_year:                  int
+
+        :param land_use_factor:             land use factor or packing factor, default 0.47 for solar PV
+        :type land_use_factor:              float
+
+        :param performance_ratio:           performance ratio between actual and standard conditions, default 85%
+        :type performance_ratio:            float
+
         :param output_directory:            full path to output directory
         :type output_directory:             str
 
-        :return:                            array of suitable area (sqkm) for solar PV
+        :return:                            array of solar PV technical potential (kWh/year)
     """
 
     # compute suitable area (sqkm) per grid cell for solar PV
@@ -980,10 +965,22 @@ def calc_technical_potential_solar_csp(elev_raster: str,
         :param *_raster:                    full path with file name and extension to the input raster file
         :type *_raster:                     str
 
+        :param temp_ambient_k:              surface air temperature (K)
+        :type temp_ambient_k:               numpy array
+
+        :param radiation:                   solar radiation (W/m^2)
+        :type radiation:                    numpy array
+
+        :param target_year:                 target year in YYYY format
+        :type target_year:                  int
+
+        :param land_use_factor:             land use factor or packing factor, default 0.37 for solar CSP
+        :type land_use_factor:              float
+
         :param output_directory:            full path to output directory
         :type output_directory:             str
 
-        :return:                            array of suitable area (sqkm) for solar PV
+        :return:                            array of solar CSP technical potential (kWh/year)
     """
 
     # compute suitable area (sqkm) per grid cell for solar PV
@@ -1042,14 +1039,14 @@ def calc_technical_potential_wind(elev_raster: str,
                                   pressure: np.ndarray,
                                   temp_k: np.ndarray,
                                   sp_humidity: np.ndarray,
-                                  power_density,
-                                  n_avail,
-                                  n_array,
-                                  p_rated,
-                                  output_directory: str,
                                   target_year: int,
-                                  wind_turbname: str,
-                                  hub_height: float = 100.0) -> np.ndarray:
+                                  output_directory: str,
+                                  wind_turbname: str = 'vestas_v90_2000',
+                                  turb_rated_power: float = 2000.0,
+                                  hub_height: float = 100.0,
+                                  turb_deploy_density: float = 5000.0,
+                                  avg_turb_availability: float = 0.95,
+                                  turb_array_eff: float = 0.90) -> np.ndarray:
 
     """
     Calculates the wind technical potential as an array in kWh per year.
@@ -1057,6 +1054,51 @@ def calc_technical_potential_wind(elev_raster: str,
     Sources: Eurek et al. 2017, http://dx.doi.org/10.1016/j.eneco.2016.11.015
              Karnauskas et al. 2018, https://doi.org/10.1038/s41561-017-0029-9
              Rinne et al. 2018, https://doi.org/10.1038/s41560-018-0137-9
+
+    Parameters:
+        :param *_raster:                    full path with file name and extension to the input raster file
+        :type *_raster:                     str
+
+        :param wind_speed:                  wind speed (m/s) at ref. height (10 m)
+        :type wind_speed:                   numpy array
+
+        :param pressure:                    surface pressure (Pascal = J/m3)
+        :type pressure:                     numpy array
+
+        :param temp_k:                      surface temperature (K)
+        :type temp_k:                       numpy array
+
+        :param sp_humidity:                 surface specific humidity (Kg/Kg)
+        :type sp_humidity:                  numpy array
+
+        :param target_year:                 target year in YYYY format
+        :type target_year:                  int
+
+        :param output_directory:            full path to output directory
+        :type output_directory:             str
+
+        :param wind_turbname:               wind turbine name, default 'vestas_v90_2000' as representative turbine
+        :type wind_turbname:                str
+
+        :param turb_rated_power:            maximum power output (KW) by a turbine at optimum wind speed,
+                                            default 2,000 KW is for 'vestas_v90_2000'
+        :type turb_rated_power:             float
+
+        :param hub_height:                  turbine hub height (m), default 100 m
+        :type hub_height:                   float
+
+        :param turb_deploy_density:         turbine deployment (spacing) density as power per sqkm (KW/sqkm),
+                                            default 5,000 KW/sqkm as per Eurek et al. (2017)
+        :type turb_deploy_density:          float
+
+        :param avg_turb_availability:       avg. availability of turbine over a year to account for maintenance,
+                                            breakdown, etc., default 95%
+        :type avg_turb_availability:        float
+
+        :param turb_array_eff:              turbine efficiency to account for losses in farm arrays, default 90%
+        :type turb_array_eff:               float
+
+        :return:                            array of onshore wind technical potential (kWh/year)
     """
 
     # compute suitable area (sqkm) per grid cell for wind power
@@ -1080,29 +1122,26 @@ def calc_technical_potential_wind(elev_raster: str,
     # adjust wind speed for air density
     wind_speed_hub_adj = adjust_wind_speed_for_air_density(wind_speed_hub, rho_m)
 
-    # Compute wind power at the hub height using power curve of respective turbine
+    # Compute wind power (KW) at the hub height using power curve of respective turbine
     wind_power_daily = compute_wind_power(wind_speed_hub_adj, wind_turbname)
 
-    # compute yearly mean wind power from daily wind power
+    # compute yearly mean wind power (KW) from daily wind power
     wind_power_yearly = np.mean(wind_power_daily, axis=0)
 
     # save yearly wind power as .npy
-    out_wind_power_yearly = os.path.join(output_directory, 'wind_power_kw_' + str(target_year) + '.npy')
+    out_wind_power_yearly = os.path.join(output_directory, 'wind_power_kw_yearly_' + str(target_year) + '.npy')
     np.save(out_wind_power_yearly, wind_power_yearly)
 
     # compute capacity factor (CF)
-    cf = ((wind_power_yearly / 1000.0) * n_avail * n_array) / p_rated
+    cf = ((wind_power_yearly / 1000.0) * avg_turb_availability * turb_array_eff) / turb_rated_power
 
-    # calculate technical potential per gridcell
-    land_potential_mwh = suitable_wind_area_sqkm * power_density * yr_hours * cf
+    # calculate technical potential per gridcell in kwh/yr
+    wind_potential_kwh_p_yr = suitable_wind_area_sqkm * turb_deploy_density * yr_hours * cf
 
-    # MWh to KWh
-    land_potential = land_potential_mwh * 1000.0
-
-    land_potential_raster = os.path.join(output_directory, 'wind_technical_potential_' + str(target_year) + '.npy')
-    np.save(land_potential_raster, land_potential)
+    wind_potential_raster = os.path.join(output_directory, 'wind_technical_potential_kwh_p_yr' + str(target_year) + '.npy')
+    np.save(wind_potential_raster, wind_potential_kwh_p_yr)
 
     cf_raster = os.path.join(output_directory, 'wind_cf_' + str(target_year) + '.npy')
     np.save(cf_raster, cf)
 
-    return land_potential
+    return wind_potential_kwh_p_yr

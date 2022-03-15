@@ -118,10 +118,6 @@ class TestTechnicalPotential(unittest.TestCase):
 
         pass
 
-    def test_calc_final_suitability(self):
-
-        pass
-
     def test_get_hours_per_year(self):
 
         no_leap = tp.get_hours_per_year(2019)
