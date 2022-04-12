@@ -342,13 +342,19 @@ def compute_full_load_hours_for_csp(radiation: np.ndarray) -> np.ndarray:
         :return full_load_hours:                array of full load hours for CSP
     """
 
+    # initialize an array with zeros to set full load hours w.r.t. radiation
     full_load_hours = np.zeros_like(radiation)
 
+    # set full load hour as 5260.0 at grid cells with solar radiation over 2800.0 W/m^2
     full_load_hours = np.where(radiation > 2800.0, 5260.0, full_load_hours)
 
+    # index cells with solar radiation between 1095-2800 W/m^2
     idx_full_load_hours = np.where((radiation >= 1095.0) * (radiation <= 2800.0))
+
+    # set full load hours of the indexed grid cells
     full_load_hours[idx_full_load_hours] = 1.83 * radiation[idx_full_load_hours] + 150.0
 
+    # if full load hours is over 5260.0 in any grid cell, reset that to 5260.0 (maximum)
     full_load_hours = np.where(full_load_hours > 5260.0, 5260.0, full_load_hours)
 
     return full_load_hours
@@ -391,7 +397,7 @@ def compute_csp_eff(temp_ambient_k: np.ndarray,
     # Converting temp from K to deg_C
     temp_ambient_c = temp_ambient_k - 273.15
 
-    # Initialize the array of CSP efficiency with 0s
+    # Initialize the array of CSP efficiency with zeros
     csp_efficiency = np.zeros_like(radiation)
 
     # Avoid division by zero (ocean cells and a group of land cells at higher latitudes in the Winter
@@ -510,105 +516,78 @@ def process_climate_data(radiation_nc_file: str,
     return arr_radiation, arr_wind, arr_tas, arr_pressure, arr_sp_humidity
 
 
-def process_elevation(elev_raster_file: str) -> np.ndarray:
+def process_elevation(elev_raster_file: str,
+                      tech_name: str) -> np.ndarray:
 
     """
-    Process elevation raster files to exclude unsuitable area.
+    Process elevation raster files to exclude unsuitable area. No altitude constraints for solar technologies.
+
+    Source: Deng et al. 2015
 
     Parameters:
         :param elev_raster_file:            full path with file name and extension to the input raster file
         :type elev_raster_file:             str
 
-        :return:                            array of elevation data
+        :param tech_name:                   name of generation technology (e.g., wind, solar_pv)
+        :type tech_name:                    str
+
+        :return:                            array of suitability factors (0, 1) w.r.t. elevations
     """
 
+    # read elevation raster file
     ras_elev = rasterio.open(elev_raster_file)
 
-    arr_elev = np.where(ras_elev.read(1) > 2500, 0, 1)
+    # initialize an array with zeros to set suitability factors w.r.t. elevation
+    arr_elev = np.zeros_like(ras_elev)
+
+    # set suitability factors for technology-specific suitable (1) and unsuitable (0) areas w.r.t. elevation
+    if tech_name == 'wind':
+        arr_elev = np.where(ras_elev.read(1) > 2500, 0, 1)
+
+    elif tech_name == 'solar_pv':
+        arr_elev = np.where(ras_elev.read(1) > 2500, 1, 1)
+
+    elif tech_name == 'solar_csp':
+        arr_elev = np.where(ras_elev.read(1) > 2500, 1, 1)
 
     return arr_elev
 
 
-def process_elevation_solar(elev_raster_file: str) -> np.ndarray:
+def process_slope(slope_raster_file: str,
+                  tech_name: str) -> np.ndarray:
 
     """
-    Process elevation raster files to exclude unsuitable area for solar (no altitude constraint).
+    Process slope raster files to exclude unsuitable areas for slope.
 
     Source: Deng et al. 2015
-
-    Parameters:
-        :param elev_raster_file:            full path with file name and extension to the input raster file
-        :type elev_raster_file:             str
-
-        :return:                            array of elevation data
-    """
-
-    ras_elev = rasterio.open(elev_raster_file)
-
-    arr_elev_solar = np.where(ras_elev.read(1) > 2500, 1, 1)
-
-    return arr_elev_solar
-
-
-def process_slope(slope_raster_file: str) -> np.ndarray:
-
-    """
-    Process slope raster files to exclude unsuitable area.
 
     Parameters:
         :param slope_raster_file:           full path with file name and extension to the input raster file
         :type slope_raster_file:            str
 
-        :return:                            array of slope data
+        :param tech_name:                   name of generation technology (e.g., wind, solar_pv)
+        :type tech_name:                    str
+
+        :return:                            array of suitability factors (0, 1) w.r.t. slope
     """
 
+    # read slope raster file
     ras_slope = rasterio.open(slope_raster_file)
 
-    arr_slope = np.where(ras_slope.read(1) > 20, 0, 1)
+    # initialize an array with zeros to set suitability factors w.r.t. slope
+    arr_slope = np.zeros_like(ras_slope)
+
+    # set suitability factors for technology-specific suitable (1) and unsuitable (0) areas w.r.t. slope
+    if tech_name == 'wind':
+        arr_slope = np.where(ras_slope.read(1) > 20, 0, 1)
+
+    if tech_name == 'solar_pv':
+        arr_slope = np.where(ras_slope.read(1) > 27, 0, 1)
+
+    if tech_name == 'solar_csp':
+        arr_slope = np.where(ras_slope.read(1) > 4, 0, 1)
 
     return arr_slope
-
-
-def process_slope_solar_pv(slope_raster_file: str) -> np.ndarray:
-
-    """
-    Process slope raster files to exclude unsuitable area for solar PV.
-
-    Source: Deng et al. 2015
-
-    Parameters:
-        :param slope_raster_file:           full path with file name and extension to the input raster file
-        :type slope_raster_file:            str
-
-        :return:                            array of slope data
-    """
-
-    ras_slope = rasterio.open(slope_raster_file)
-
-    arr_slope_solar_pv = np.where(ras_slope.read(1) > 27, 0, 1)
-
-    return arr_slope_solar_pv
-
-
-def process_slope_solar_csp(slope_raster_file: str) -> np.ndarray:
-
-    """
-    Process slope raster files to exclude unsuitable area for solar CSP.
-
-    Source: Deng et al. 2015
-
-    Parameters:
-        :param slope_raster_file:           full path with file name and extension to the input raster file
-        :type slope_raster_file:            str
-
-        :return:                            array of slope data
-    """
-
-    ras_slope = rasterio.open(slope_raster_file)
-
-    arr_slope_solar_csp = np.where(ras_slope.read(1) > 4, 0, 1)
-
-    return arr_slope_solar_csp
 
 
 def process_protected_areas(protected_areas_raster_file: str) -> np.ndarray:
@@ -620,17 +599,20 @@ def process_protected_areas(protected_areas_raster_file: str) -> np.ndarray:
         :param protected_areas_raster_file:         full path with file name and extension to the input raster file
         :type protected_areas_raster_file:          str
 
-        :return:                                    array of protected areas data
+        :return:                                    array of suitability factors (0, 1) w.r.t. protected areas
     """
 
+    # read raster file
     ras_protected_areas = rasterio.open(protected_areas_raster_file)
 
+    # set suitability factors (0 = unsuitable, 1 = suitable) for all technologies
     arr_protected_areas = np.where(ras_protected_areas.read(1) < 0.0, 1, 0)
 
     return arr_protected_areas
 
 
-def process_permafrost(permafrost_raster_file: str) -> np.ndarray:
+def process_permafrost(permafrost_raster_file: str,
+                       tech_name: str) -> np.ndarray:
 
     """
     Process permafrost raster files to exclude unsuitable area.
@@ -639,89 +621,69 @@ def process_permafrost(permafrost_raster_file: str) -> np.ndarray:
         :param permafrost_raster_file:          full path with file name and extension to the input raster file
         :type permafrost_raster_file:           str
 
-        :return:                                array of permafrost data
+        :param tech_name:                       name of generation technology (e.g., wind, solar_pv)
+        :type tech_name:                        str
+
+        :return:                                array of suitability factors (0, 1) w.r.t. permafrost
     """
 
+    # read raster file
     ras_permafrost = rasterio.open(permafrost_raster_file)
 
-    arr_permafrost = np.where(ras_permafrost.read(1) >= 0.1, 0, 1)
+    # initialize an array with zeros to set suitability factors w.r.t. permafrost
+    arr_permafrost = np.zeros_like(ras_permafrost)
+
+    # set suitability factors for technology-specific suitable (1) and unsuitable (0) areas w.r.t. permafrost
+    if tech_name == 'wind':
+        arr_permafrost = np.where(ras_permafrost.read(1) >= 0.1, 0, 1)
+
+    elif tech_name == 'solar_pv':
+        arr_permafrost = np.where(ras_permafrost.read(1) >= 0.1, 1, 1)
+
+    elif tech_name == 'solar_csp':
+        arr_permafrost = np.where(ras_permafrost.read(1) >= 0.1, 1, 1)
 
     return arr_permafrost
 
 
-def process_permafrost_solar(permafrost_raster_file: str) -> np.ndarray:
-
-    """
-    Process permafrost raster files to exclude unsuitable area for solar .
-
-    Parameters:
-        :param permafrost_raster_file:          full path with file name and extension to the input raster file
-        :type permafrost_raster_file:           str
-
-        :return:                                array of permafrost data
-    """
-
-    ras_permafrost = rasterio.open(permafrost_raster_file)
-
-    arr_permafrost_solar = np.where(ras_permafrost.read(1) >= 0.1, 1, 1)
-
-    return arr_permafrost_solar
-
-
-def process_lulc(lulc_raster_file: str) -> np.ndarray:
+def process_lulc(lulc_raster_file: str,
+                 tech_name: str) -> np.ndarray:
 
     """
     Process land use land cover (lulc) raster files to exclude unsuitable area.
 
-    Source: Eurek et al. 2017
+    Source: Wind suitability factors are from Eurek et al. 2017, and solar suitability factors
+            are based on Gernaat et al. 2021 and Korfiati et al. 2016.
 
     Parameters:
         :param lulc_raster_file:                full path with file name and extension to the input raster file
         :type lulc_raster_file:                 str
 
-        :return:                                array of lulc data
+        :param tech_name:                       name of generation technology (e.g., wind, solar_pv)
+        :type tech_name:                        str
+
+        :return:                                array of suitability factors for lulc
     """
 
+    # read lulc data from raster files
     ras_lulc = rasterio.open(lulc_raster_file)
 
     arr_lulc = ras_lulc.read(1).astype(np.float64)
 
-    # replace existing lulc data points with desired values
-    exist = [11, 14, 20, 30, 40, 50, 60, 70, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230]
-    replace = [0, 0.7, 0.7, 0.7, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.5, 0.65, 0.5, 0.8, 0.9, 0, 0, 0, 0, 0.9, 0, 0, 0]
+    # import lulc data points and respective suitability factors
+    lulc_csv_file = pkg_resources.resource_filename('kuara', 'data/lulc_suitability_factors.csv')
 
-    for i in range(len(exist)):
-        arr_lulc = np.where(arr_lulc == exist[i], replace[i], arr_lulc)
+    df_lulc_suitability_factors = pd.read_csv(lulc_csv_file, header=0)
+
+    # replace existing lulc data points with technology-specific suitability factors
+    exist_lulc = np.array(df_lulc_suitability_factors['lulc_datapoint'])
+
+    suitability_factor = np.array(df_lulc_suitability_factors[tech_name+'_suitability_factor'])
+
+    for i in range(len(exist_lulc)):
+        arr_lulc = np.where(arr_lulc == exist_lulc[i], suitability_factor[i], arr_lulc)
 
     return arr_lulc
-
-
-def process_lulc_solar(lulc_raster_file: str) -> np.ndarray:
-
-    """
-    Process land use land cover (lulc) raster files to exclude unsuitable area for solar.
-
-    Source: Suitability factors based on Gernaat et al. 2021 and Korfiati et al. 2016
-
-    Parameters:
-        :param lulc_raster_file:                full path with file name and extension to the input raster file
-        :type lulc_raster_file:                 str
-
-        :return:                                array of lulc data
-    """
-
-    ras_lulc = rasterio.open(lulc_raster_file)
-
-    arr_lulc_solar = ras_lulc.read(1).astype(np.float64)
-
-    # replace existing lulc data points with desired values
-    exist = [11, 14, 20, 30, 40, 50, 60, 70, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230]
-    replace = [0, 0.01, 0.01, 0.01, 0, 0, 0, 0, 0, 0, 0.01, 0.01, 0.01, 0.01, 0.01, 0, 0, 0, 0, 0.05, 0, 0, 0]
-
-    for i in range(len(exist)):
-        arr_lulc_solar = np.where(arr_lulc_solar == exist[i], replace[i], arr_lulc_solar)
-
-    return arr_lulc_solar
 
 
 def get_hours_per_year(target_year: int) -> int:
@@ -765,11 +727,11 @@ def calc_total_suitable_area_solar_pv(elev_raster: str,
     """
 
     # apply exclusion criteria for elevation, slope, protected area, permafrost, and lulc
-    elev = process_elevation_solar(elev_raster)
-    slope = process_slope_solar_pv(slope_raster)
+    elev = process_elevation(elev_raster, tech_name='solar_pv')
+    slope = process_slope(slope_raster, tech_name='solar_pv')
     prot_area = process_protected_areas(prot_area_raster)
-    permafrost = process_permafrost_solar(permafrost_raster)
-    lulc = process_lulc_solar(lulc_raster)
+    permafrost = process_permafrost(permafrost_raster, tech_name='solar_pv')
+    lulc = process_lulc(lulc_raster, tech_name='solar_pv')
 
     # load grid_cell_area raster file
     grid_cell_area = np.load(gridcell_area_raster)
@@ -804,11 +766,11 @@ def calc_total_suitable_area_solar_csp(elev_raster: str,
     """
 
     # apply exclusion criteria for elevation, slope, protected area, permafrost, and lulc
-    elev = process_elevation_solar(elev_raster)
-    slope = process_slope_solar_csp(slope_raster)
+    elev = process_elevation(elev_raster, tech_name='solar_csp')
+    slope = process_slope(slope_raster, tech_name='solar_csp')
     prot_area = process_protected_areas(prot_area_raster)
-    permafrost = process_permafrost_solar(permafrost_raster)
-    lulc = process_lulc_solar(lulc_raster)
+    permafrost = process_permafrost(permafrost_raster, tech_name='solar_csp')
+    lulc = process_lulc(lulc_raster, tech_name='solar_csp')
 
     # load grid_cell_area raster file
     grid_cell_area = np.load(gridcell_area_raster)
@@ -843,11 +805,11 @@ def calc_total_suitable_area_wind(elev_raster: str,
     """
 
     # apply exclusion criteria for elevation, slope, protected area, permafrost, and lulc
-    elev = process_elevation(elev_raster)
-    slope = process_slope(slope_raster)
+    elev = process_elevation(elev_raster, tech_name='wind')
+    slope = process_slope(slope_raster, tech_name='wind')
     prot_area = process_protected_areas(prot_area_raster)
-    permafrost = process_permafrost(permafrost_raster)
-    lulc = process_lulc(lulc_raster)
+    permafrost = process_permafrost(permafrost_raster, tech_name='wind')
+    lulc = process_lulc(lulc_raster, tech_name='wind')
 
     # load grid_cell_area raster file
     grid_cell_area = np.load(gridcell_area_raster)
@@ -1122,7 +1084,7 @@ def calc_technical_potential_wind(elev_raster: str,
     # adjust wind speed for air density
     wind_speed_hub_adj = adjust_wind_speed_for_air_density(wind_speed_hub, rho_m)
 
-    # Compute wind power (KW) at the hub height using power curve of respective turbine
+    # Compute wind power (KW) at the hub height using power curve of given turbine
     wind_power_daily = compute_wind_power(wind_speed_hub_adj, wind_turbname)
 
     # compute yearly mean wind power (KW) from daily wind power

@@ -98,26 +98,6 @@ class TestTechnicalPotential(unittest.TestCase):
 
         pass
 
-    def test_process_elevation_solar(self):
-
-        pass
-
-    def test_process_slope_solar_pv(self):
-
-        pass
-
-    def test_process_slope_solar_csp(self):
-
-        pass
-
-    def test_process_permafrost_solar(self):
-
-        pass
-
-    def test_process_lulc_solar(self):
-
-        pass
-
     def test_get_hours_per_year(self):
 
         no_leap = tp.get_hours_per_year(2019)
