@@ -517,7 +517,10 @@ def process_climate_data(radiation_nc_file: str,
 
 
 def process_elevation(elev_raster_file: str,
-                      tech_name: str) -> np.ndarray:
+                      tech_name: str,
+                      elev_thres_wind: float = 2500.0,
+                      elev_thres_solar_pv: float = 1.0e9,
+                      elev_thres_solar_csp: float = 1.0e9) -> np.ndarray:
 
     """
     Process elevation raster files to exclude unsuitable area. No altitude constraints for solar technologies.
@@ -531,6 +534,17 @@ def process_elevation(elev_raster_file: str,
         :param tech_name:                   name of generation technology (e.g., wind, solar_pv)
         :type tech_name:                    str
 
+        :param elev_thres_wind:             elevation threshold over which wind is not suitable (default 2500.0)
+        :type elev_thres_wind:              float
+
+        :param elev_thres_solar_pv:         elevation threshold over which solar PV is not suitable
+                                            (default 1.0e9 that does not constrain solar PV for elevation)
+        :type elev_thres_solar_pv:          float
+
+        :param elev_thres_solar_csp:        elevation threshold over which solar CSP is not suitable
+                                            (default 1.0e9 that does not constrain solar CSP for elevation)
+        :type elev_thres_solar_csp:         float
+
         :return:                            array of suitability factors (0, 1) w.r.t. elevations
     """
 
@@ -542,19 +556,22 @@ def process_elevation(elev_raster_file: str,
 
     # set suitability factors for technology-specific suitable (1) and unsuitable (0) areas w.r.t. elevation
     if tech_name == 'wind':
-        arr_elev = np.where(ras_elev.read(1) > 2500, 0, 1)
+        arr_elev = np.where(ras_elev.read(1) > elev_thres_wind, 0, 1)
 
     elif tech_name == 'solar_pv':
-        arr_elev = np.where(ras_elev.read(1) > 2500, 1, 1)
+        arr_elev = np.where(ras_elev.read(1) > elev_thres_solar_pv, 0, 1)
 
     elif tech_name == 'solar_csp':
-        arr_elev = np.where(ras_elev.read(1) > 2500, 1, 1)
+        arr_elev = np.where(ras_elev.read(1) > elev_thres_solar_csp, 0, 1)
 
     return arr_elev
 
 
 def process_slope(slope_raster_file: str,
-                  tech_name: str) -> np.ndarray:
+                  tech_name: str,
+                  slope_thres_wind: float = 20.0,
+                  slope_thres_solar_pv: float = 27.0,
+                  slope_thres_solar_csp: float = 4.0) -> np.ndarray:
 
     """
     Process slope raster files to exclude unsuitable areas for slope.
@@ -568,6 +585,15 @@ def process_slope(slope_raster_file: str,
         :param tech_name:                   name of generation technology (e.g., wind, solar_pv)
         :type tech_name:                    str
 
+        :param slope_thres_wind:            slope threshold over which wind is not suitable (default 20.0)
+        :type slope_thres_wind:             float
+
+        :param slope_thres_solar_pv:        slope threshold over which solar PV is not suitable (default 27.0)
+        :type slope_thres_solar_pv:         float
+
+        :param slope_thres_solar_csp:       slope threshold over which solar CSP is not suitable (default 4.0)
+        :type slope_thres_solar_csp:        float
+
         :return:                            array of suitability factors (0, 1) w.r.t. slope
     """
 
@@ -579,40 +605,47 @@ def process_slope(slope_raster_file: str,
 
     # set suitability factors for technology-specific suitable (1) and unsuitable (0) areas w.r.t. slope
     if tech_name == 'wind':
-        arr_slope = np.where(ras_slope.read(1) > 20, 0, 1)
+        arr_slope = np.where(ras_slope.read(1) > slope_thres_wind, 0, 1)
 
     if tech_name == 'solar_pv':
-        arr_slope = np.where(ras_slope.read(1) > 27, 0, 1)
+        arr_slope = np.where(ras_slope.read(1) > slope_thres_solar_pv, 0, 1)
 
     if tech_name == 'solar_csp':
-        arr_slope = np.where(ras_slope.read(1) > 4, 0, 1)
+        arr_slope = np.where(ras_slope.read(1) > slope_thres_solar_csp, 0, 1)
 
     return arr_slope
 
 
-def process_protected_areas(protected_areas_raster_file: str) -> np.ndarray:
+def process_protected_areas(protected_areas_raster_file: str,
+                            protected_areas_thres: float = 0.0) -> np.ndarray:
 
     """
     Process raster files for protected areas to exclude unsuitable area.
 
     Parameters:
-        :param protected_areas_raster_file:         full path with file name and extension to the input raster file
-        :type protected_areas_raster_file:          str
+        :param protected_areas_raster_file:        full path with file name and extension to the input raster file
+        :type protected_areas_raster_file:         str
 
-        :return:                                    array of suitability factors (0, 1) w.r.t. protected areas
+        :param protected_areas_thres:              protected areas threshold over which no VRE is suitable (default 0.0)
+        :type protected_areas_thres:               float
+
+        :return:                                   array of suitability factors (0, 1) w.r.t. protected areas
     """
 
     # read raster file
     ras_protected_areas = rasterio.open(protected_areas_raster_file)
 
     # set suitability factors (0 = unsuitable, 1 = suitable) for all technologies
-    arr_protected_areas = np.where(ras_protected_areas.read(1) < 0.0, 1, 0)
+    arr_protected_areas = np.where(ras_protected_areas.read(1) >= protected_areas_thres, 0, 1)
 
     return arr_protected_areas
 
 
 def process_permafrost(permafrost_raster_file: str,
-                       tech_name: str) -> np.ndarray:
+                       tech_name: str,
+                       permafrost_thres_wind: float = 0.1,
+                       permafrost_thres_solar_pv: float = 1.0e9,
+                       permafrost_thres_solar_csp: float = 1.0e9) -> np.ndarray:
 
     """
     Process permafrost raster files to exclude unsuitable area.
@@ -623,6 +656,17 @@ def process_permafrost(permafrost_raster_file: str,
 
         :param tech_name:                       name of generation technology (e.g., wind, solar_pv)
         :type tech_name:                        str
+
+        :param permafrost_thres_wind:           permafrost threshold over which wind is not suitable (default 0.1)
+        :type permafrost_thres_wind:            float
+
+        :param permafrost_thres_solar_pv:       permafrost threshold over which solar PV is not suitable
+                                                (default 1.0e9 that does not constrain solar PV for permafrost)
+        :type permafrost_thres_solar_pv:        float
+
+        :param permafrost_thres_solar_csp:      permafrost threshold over which solar CSP is not suitable
+                                                (default 1.0e9 that does not constrain solar CSP for permafrost)
+        :type permafrost_thres_solar_csp:       float
 
         :return:                                array of suitability factors (0, 1) w.r.t. permafrost
     """
@@ -635,13 +679,13 @@ def process_permafrost(permafrost_raster_file: str,
 
     # set suitability factors for technology-specific suitable (1) and unsuitable (0) areas w.r.t. permafrost
     if tech_name == 'wind':
-        arr_permafrost = np.where(ras_permafrost.read(1) >= 0.1, 0, 1)
+        arr_permafrost = np.where(ras_permafrost.read(1) >= permafrost_thres_wind, 0, 1)
 
     elif tech_name == 'solar_pv':
-        arr_permafrost = np.where(ras_permafrost.read(1) >= 0.1, 1, 1)
+        arr_permafrost = np.where(ras_permafrost.read(1) >= permafrost_thres_solar_pv, 0, 1)
 
     elif tech_name == 'solar_csp':
-        arr_permafrost = np.where(ras_permafrost.read(1) >= 0.1, 1, 1)
+        arr_permafrost = np.where(ras_permafrost.read(1) >= permafrost_thres_solar_csp, 0, 1)
 
     return arr_permafrost
 
