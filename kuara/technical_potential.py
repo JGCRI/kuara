@@ -503,7 +503,7 @@ def process_climate_data(radiation_nc_file: str,
     arr_wind_mean = np.mean(arr_wind, axis=0)
     arr_tas_mean = np.mean(arr_tas, axis=0)
 
-    # save the daily mean of radiation, wind, and tas as .npy
+    # save the yearly mean of radiation, wind, and tas as .npy
     arr_radiation_raster = os.path.join(output_directory, 'solar_radiation_w_m2_' + str(target_year) + '.npy')
     np.save(arr_radiation_raster, arr_radiation_mean)
 
